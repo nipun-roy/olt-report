@@ -15,6 +15,26 @@ export const reports = sqliteTable('reports', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
+// Categories Table: For SMS / Snippets
+export const categories = sqliteTable('categories', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(), // যেমন: Payment, Delivery, Network Support
+  slug: text('slug').notNull().unique(),
+});
+
+// Quick SMS / Snippets Table
+export const snippets = sqliteTable('snippets', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(), // যেমন: "পেমেন্ট পাওয়ার পর মেসেজ"
+  content: text('content').notNull(), // মূল টেক্সট (যেখানে {name}, {amount} ইত্যাদি থাকতে পারে)
+  categoryId: text('category_id'),
+  categoryName: text('category_name'),
+  tags: text('tags'), // কমা দিয়ে সেপারেট করা ট্যাগ (e.g. "bkash,nagad,payment")
+  isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
+  copyCount: integer('copy_count').default(0), // কতবার কপি হয়েছে
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
 export const olts = sqliteTable('olts', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

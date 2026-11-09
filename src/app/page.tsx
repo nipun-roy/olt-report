@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import {
   UploadCloud,
   FileText,
@@ -21,6 +22,7 @@ import {
   Radio,
   PlusCircle,
   HelpCircle,
+  MessageSquare,
 } from 'lucide-react';
 
 interface ReportItem {
@@ -334,6 +336,16 @@ EPON0/3:2\t00:1E:67:88:99:AA\tCustomer-Opt\t1200\t42.00\t3.30\t14.00\t2.10\t-18.
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Quick SMS Assistant Navigation Link */}
+            <Link
+              href="/sms"
+              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold transition shadow"
+              title="Quick SMS ও Snippet Assistant ড্যাশবোর্ড"
+            >
+              <MessageSquare className="w-4 h-4 text-indigo-400" />
+              <span>Quick SMS</span>
+            </Link>
+
             {/* Toggle Input Section */}
             <button
               onClick={() => setShowInputSection(!showInputSection)}

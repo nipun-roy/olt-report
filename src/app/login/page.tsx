@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn, signUp, useSession, signOut } from '@/lib/auth-client';
 import {
@@ -21,8 +21,11 @@ import {
   LogOut,
 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
+
   const { data: session, isPending: sessionLoading } = useSession();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -36,13 +39,34 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Quick fill test admin credentials
-  const handleFillDemo = () => {
-    setName('OneSky Admin');
-    setEmail('admin@onesky.net');
-    setPassword('admin123456');
-    setConfirmPassword('admin123456');
-    setError(null);
+  // 1-Click Instant Admin Login
+  const handleQuickAdminLogin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setEmail('admin@onesky.net');
+      setPassword('admin123');
+
+      const res = await signIn.email({
+        email: 'admin@onesky.net',
+        password: 'admin123',
+      });
+
+      if (res.error) {
+        setError(res.error.message || 'অ্যাডমিন লগইন ব্যর্থ হয়েছে।');
+        return;
+      }
+
+      setSuccess('অ্যাডমিন লগইন সফল! ড্যাশবোর্ডে প্রবেশ করা হচ্ছে...');
+      setTimeout(() => {
+        router.push(callbackUrl);
+        router.refresh();
+      }, 500);
+    } catch (err: any) {
+      setError(err?.message || 'সার্ভার কানেকশন ত্রুটি।');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,9 +110,9 @@ export default function LoginPage() {
 
         setSuccess('লগইন সফল হয়েছে! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...');
         setTimeout(() => {
-          router.push('/sms');
+          router.push(callbackUrl);
           router.refresh();
-        }, 800);
+        }, 500);
       } else {
         const res = await signUp.email({
           name: name.trim(),
@@ -103,9 +127,9 @@ export default function LoginPage() {
 
         setSuccess('একাউন্ট তৈরি সফল হয়েছে এবং লগইন সম্পন্ন হয়েছে!');
         setTimeout(() => {
-          router.push('/sms');
+          router.push(callbackUrl);
           router.refresh();
-        }, 800);
+        }, 500);
       }
     } catch (err: any) {
       setError(err?.message || 'সার্ভার কানেকশন ত্রুটি। আবার চেষ্টা করুন।');
@@ -179,7 +203,7 @@ export default function LoginPage() {
             <span>Better Auth Secured • OneSky OLT Hub</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            {mode === 'signin' ? 'সিস্টেমে সাইন-ইন করুন' : 'নতুন এডমিন একাউন্ট খুলুন'}
+            {mode === 'signin' ? 'সিস্টেমে লগইন করুন' : 'নতুন এডমিন একাউন্ট খুলুন'}
           </h1>
           <p className="text-xs text-slate-400">
             OLT অপটিক্যাল ম্যানেজমেন্ট ও SMS টেমপ্লেট ডাটাবেজের নিরাপদ এক্সেস
@@ -188,6 +212,31 @@ export default function LoginPage() {
 
         {/* Auth Card */}
         <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+          {/* Quick Admin Callout */}
+          <div className="p-3.5 bg-gradient-to-r from-indigo-950/60 to-purple-950/50 border border-indigo-500/30 rounded-2xl flex items-center justify-between gap-3">
+            <div className="text-left text-xs min-w-0">
+              <span className="text-indigo-400 font-bold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>ডিফল্ট অ্যাডমিন এক্সেস:</span>
+              </span>
+              <p className="text-[11px] text-slate-300 font-mono mt-0.5 truncate">
+                ইমেইল: <strong className="text-white">admin@onesky.net</strong>
+              </p>
+              <p className="text-[11px] text-slate-300 font-mono truncate">
+                পাসওয়ার্ড: <strong className="text-white">admin123</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleQuickAdminLogin}
+              disabled={loading}
+              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold shrink-0 transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+              <span>১-ক্লিকে লগইন</span>
+            </button>
+          </div>
+
           {/* Signin / Signup Switcher */}
           <div className="flex items-center p-1 bg-[#090d16] rounded-2xl border border-slate-800">
             <button
@@ -345,25 +394,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Fill & Skip Links */}
-          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2 text-xs">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-amber-400 hover:text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>ডেমো অ্যাডমিন বসান</span>
-            </button>
-
-            <Link
-              href="/sms"
-              className="text-slate-400 hover:text-white text-[11px] font-medium transition"
-            >
-              পরে লগইন করব →
-            </Link>
-          </div>
         </div>
 
         {/* Footer info */}
@@ -372,5 +402,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#070b14] flex items-center justify-center">
+        <RefreshCw className="w-6 h-6 text-indigo-500 animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

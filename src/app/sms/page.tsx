@@ -23,6 +23,11 @@ import {
   Layers,
   ArrowRight,
   ExternalLink,
+  Globe,
+  PhoneCall,
+  CheckCheck,
+  Radio,
+  Wrench,
 } from 'lucide-react';
 
 interface Snippet {
@@ -158,7 +163,7 @@ export default function SmsAssistantPage() {
     }));
   };
 
-  // 1-Click Copy logic
+  // 1-Click Copy logic for full Snippet cards
   const handleCopy = async (snippet: Snippet) => {
     const textToCopy = getRenderedContent(snippet);
 
@@ -184,6 +189,16 @@ export default function SmsAssistantPage() {
       }, 2000);
     } catch (err) {
       alert('কপি করতে ব্যর্থ হয়েছে: ' + err);
+    }
+  };
+
+  // Copy quick English remark
+  const handleCopyQuickEnglish = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`ইংরেজি রিমার্ক কপি হয়েছে: "${label}"`);
+    } catch (err) {
+      alert('কপি করতে সমস্যা হয়েছে: ' + err);
     }
   };
 
@@ -329,6 +344,46 @@ export default function SmsAssistantPage() {
     });
   }, [snippets, selectedCategory, searchQuery]);
 
+  // Quick English presets specifically for client conversation outcomes
+  const quickEnglishPresets = [
+    {
+      label: 'কথা হয়েছে, সমস্যা নেই',
+      situation: 'Client confirmed internet is fine',
+      text: 'Spoke with the client. Confirmed that the internet connection is running smoothly and no issues were found at present. Service is fully operational.',
+      icon: <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />,
+    },
+    {
+      label: 'টিকেট সমাধান ও ক্লোজ',
+      situation: 'Resolution message for ticket',
+      text: 'Dear client, as per our conversation, your internet connection is now working properly with no reported issues. Ticket has been marked as resolved. Thank you.',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />,
+    },
+    {
+      label: 'অপটিক্যাল সিগন্যাল নরমাল',
+      situation: 'Optical loss verified normal',
+      text: 'Spoke with customer. Optical RX power verified at optimal level. Customer confirmed browsing speed and stability are fine. No further issue.',
+      icon: <Radio className="w-3.5 h-3.5 text-purple-400" />,
+    },
+    {
+      label: 'ফোন রিসিভ করেনি',
+      situation: 'Client unanswered / follow-up pending',
+      text: 'Attempted to contact the client regarding line status, but the call was unanswered. Line shows online in OLT. A follow-up attempt will be made.',
+      icon: <PhoneCall className="w-3.5 h-3.5 text-amber-400" />,
+    },
+    {
+      label: 'রাউটার রিস্টার্ট করানো হয়েছে',
+      situation: 'Guided client to reboot',
+      text: 'Communicated with client. Guided to power-cycle the Wi-Fi router and ONU. Link re-established with clean latency. Client confirmed issue resolved.',
+      icon: <RotateCcw className="w-3.5 h-3.5 text-blue-400" />,
+    },
+    {
+      label: 'তার মেরামত সম্পন্ন',
+      situation: 'Drop cable spliced & restored',
+      text: 'Field maintenance team inspected optical link. Repaired damaged fiber drop core; optical signal restored to normal. Customer verified stable connection.',
+      icon: <Wrench className="w-3.5 h-3.5 text-teal-400" />,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#080d1a] text-slate-100 pb-20 selection:bg-indigo-500 selection:text-white">
       {/* Toast Notification Banner */}
@@ -354,9 +409,12 @@ export default function SmsAssistantPage() {
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-mono">
                   1-Click Copy
                 </span>
+                <span className="hidden md:inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  Auto English Ready
+                </span>
               </div>
               <p className="text-xs text-slate-400">
-                ডাইনামিক ভেরিয়েবল সহ রেডিমেড মেসেজ ও SMS টেমপ্লেট
+                ডাইনামিক ভেরিয়েবল ও অটো-ইংলিশ রিমার্কস সহ রেডিমেড মেসেজ ড্যাশবোর্ড
               </p>
             </div>
           </div>
@@ -384,6 +442,52 @@ export default function SmsAssistantPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-8 mt-6 space-y-6">
+        {/* NEW FEATURE: Quick English Remarks Section ("client r sathe kotha hoye se.. kno issue pasche na akhon") */}
+        <div className="bg-gradient-to-r from-[#0f172a] via-[#131d38] to-[#0f172a] border border-indigo-500/30 rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-sky-400" />
+                <span>Auto English Client Remarks (ক্লায়েন্টের সাথে কথা বলা শেষে রেডি রিমার্ক)</span>
+              </h2>
+            </div>
+            <span className="text-[11px] text-indigo-300 font-medium">
+              যেকোনো কার্ডে ক্লিক করলেই ইংরেজি টেক্সট সাথে সাথে কপি হবে 📋
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {quickEnglishPresets.map((preset, idx) => (
+              <div
+                key={idx}
+                onClick={() => handleCopyQuickEnglish(preset.text, preset.label)}
+                className="group cursor-pointer bg-[#090d16]/90 hover:bg-indigo-950/40 border border-slate-800 hover:border-indigo-500/60 rounded-xl p-3 transition-all flex flex-col justify-between text-left shadow"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
+                      {preset.icon}
+                      <span>{preset.label}</span>
+                    </span>
+                    <span className="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-400 flex items-center gap-0.5 transition font-semibold">
+                      <Copy className="w-3 h-3" />
+                      <span>কপি করুন</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-sans leading-relaxed line-clamp-2">
+                    "{preset.text}"
+                  </p>
+                </div>
+                <div className="mt-2.5 text-[10px] text-slate-500 flex items-center justify-between border-t border-slate-800/60 pt-1.5">
+                  <span className="truncate">{preset.situation}</span>
+                  <span className="text-indigo-400 group-hover:text-indigo-300 font-mono text-[9px] shrink-0">1-Click Copy</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Search Bar & Instant Filter */}
         <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
           <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -667,7 +771,7 @@ export default function SmsAssistantPage() {
                   required
                   value={modalTitle}
                   onChange={(e) => setModalTitle(e.target.value)}
-                  placeholder="যেমন: পেমেন্ট পাওয়ার পর কনফার্মেশন মেসেজ"
+                  placeholder="যেমন: Spoke with client - No issue found"
                   className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none"
                 />
               </div>
@@ -685,6 +789,7 @@ export default function SmsAssistantPage() {
                       {c.name}
                     </option>
                   ))}
+                  <option value="English Remarks (ইংরেজি রিমার্কস)">English Remarks (ইংরেজি রিমার্কস)</option>
                   <option value="General">General (সাধারণ)</option>
                 </select>
               </div>
@@ -703,7 +808,7 @@ export default function SmsAssistantPage() {
                 {/* Quick Insert Buttons */}
                 <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
                   <span className="text-[10px] text-slate-500 font-semibold">ক্লিক করে যোগ করুন:</span>
-                  {['name', 'amount', 'trx_id', 'due_date', 'area', 'onu_id', 'port', 'phone'].map((v) => (
+                  {['name', 'amount', 'trx_id', 'due_date', 'area', 'onu_id', 'port', 'phone', 'ticket_id', 'time'].map((v) => (
                     <button
                       key={v}
                       type="button"
@@ -720,7 +825,7 @@ export default function SmsAssistantPage() {
                   rows={5}
                   value={modalContent}
                   onChange={(e) => setModalContent(e.target.value)}
-                  placeholder="যেমন: প্রিয় {name}, আপনার {amount} টাকা পেমেন্ট পেয়েছি..."
+                  placeholder="যেমন: Spoke with client {name}. Confirmed connection is working properly..."
                   className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 focus:outline-none font-sans"
                 />
               </div>
@@ -734,7 +839,7 @@ export default function SmsAssistantPage() {
                   type="text"
                   value={modalTags}
                   onChange={(e) => setModalTags(e.target.value)}
-                  placeholder="যেমন: bkash, nagad, payment, order"
+                  placeholder="যেমন: english, client, resolved, support"
                   className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none"
                 />
               </div>

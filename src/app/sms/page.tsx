@@ -29,6 +29,10 @@ import {
   Radio,
   PhoneCall,
   Wrench,
+  Send,
+  Lightbulb,
+  SlidersHorizontal,
+  Bot,
 } from 'lucide-react';
 
 type LanguageType = 'banglish' | 'bangla' | 'english';
@@ -54,10 +58,27 @@ interface Category {
   slug: string;
 }
 
+// Synonyms map for smart Bengali / Banglish / English keyword matching
+const synonymMap: Record<string, string[]> = {
+  kotha: ['kotha', 'kotha bolse', 'kotha hoyeche', 'bolsi', 'spoke', 'talk', 'talked', 'call', 'called', 'alochona', 'কথা', 'বলছি', 'হয়েছে'],
+  issue: ['issue', 'issue nai', 'kono issue nai', 'somossa', 'somossha', 'problem', 'problem nai', 'thik', 'thikmoto', 'fine', 'resolved', 'solved', 'working', 'সমস্যা', 'নাই', 'সমাধান', 'সচল', 'স্বাভাবিক', 'ভালো', 'ঠিক'],
+  payment: ['payment', 'taka', 'tk', 'bkash', 'nagad', 'rocket', 'porishodh', 'paid', 'pay', 'bikash', 'পেমেন্ট', 'টাকা', 'বিকাশ', 'নগদ', 'রকেট'],
+  bill: ['bill', 'due', 'bkeya', 'baki', 'tarikh', 'last date', 'বিল', 'বকেয়া', 'বাকি', 'পরিশোধ'],
+  fiber: ['fiber', 'tar', 'cable', 'chira', 'kata', 'down', 'maintenance', 'splice', 'repair', 'broken', 'cut', 'ফাইবার', 'তার', 'ক্যাবল', 'কাটা', 'ছেঁড়া', 'রক্ষণাবেক্ষণ'],
+  router: ['router', 'wifi', 'restart', 'reboot', 'on off', 'bandho', 'chalu', 'রাউটার', 'রিস্টার্ট', 'রিবুট', 'ওয়াইফাই'],
+  signal: ['loss', 'db', 'dbm', 'signal', 'optical', 'onu', 'los', 'red light', 'power', 'সিগন্যাল', 'লস', 'অপটিক্যাল', 'ওএনইউ', 'লাল'],
+  call: ['phone', 'call', 'dhorche na', 'receive', 'busy', 'unanswered', 'no answer', 'ফোন', 'কল', 'রিসিভ', 'ধরে নাই'],
+  welcome: ['new', 'notun', 'active', 'activation', 'connection', 'লাইন', 'নতুন', 'সংযোগ', 'সক্রিয়', 'অভিনন্দন'],
+};
+
 export default function SmsAssistantPage() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // SMART COMPOSER & KEYWORD RECOMMENDER STATE
+  const [typedSms, setTypedSms] = useState<string>('');
+  const [recommendedLang, setRecommendedLang] = useState<LanguageType>('banglish');
 
   // Global default language
   const [globalLang, setGlobalLang] = useState<LanguageType>('banglish');
@@ -93,6 +114,7 @@ export default function SmsAssistantPage() {
   const [snippetToDelete, setSnippetToDelete] = useState<Snippet | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Keyboard shortcut: Ctrl+K to focus search
   useEffect(() => {
@@ -224,6 +246,17 @@ export default function SmsAssistantPage() {
     }
   };
 
+  // Copy raw text from composer
+  const handleCopyComposer = async () => {
+    if (!typedSms.trim()) return;
+    try {
+      await navigator.clipboard.writeText(typedSms);
+      showToast('টাইপকৃত SMS ক্লিপবোর্ডে কপি হয়েছে!');
+    } catch (err) {
+      alert('কপি করতে ব্যর্থ হয়েছে');
+    }
+  };
+
   // Toggle Pin
   const handleTogglePin = async (snippet: Snippet) => {
     try {
@@ -345,7 +378,76 @@ export default function SmsAssistantPage() {
     }
   };
 
-  // Filtered Snippets
+  // SMART KEYWORD RECOMMENDER ENGINE
+  const recommendedSnippets = useMemo(() => {
+    if (!typedSms || typedSms.trim().length < 2) return [];
+
+    const inputLower = typedSms.toLowerCase().trim();
+    const inputWords = inputLower.split(/[\s,।.?!\-_]+/g).filter((w) => w.length > 1);
+
+    if (inputWords.length === 0) return [];
+
+    const scored: Array<{
+      snippet: Snippet;
+      score: number;
+      matchedKeywords: string[];
+    }> = [];
+
+    snippets.forEach((snip) => {
+      let score = 0;
+      const matched = new Set<string>();
+
+      const fullSnippetText = `${snip.title} ${snip.content} ${snip.contentBanglish || ''} ${snip.contentBangla || ''} ${snip.contentEnglish || ''} ${snip.tags || ''}`.toLowerCase();
+
+      // 1. Direct word matching
+      inputWords.forEach((word) => {
+        if (fullSnippetText.includes(word)) {
+          score += 25;
+          matched.add(word);
+        }
+
+        // 2. Synonyms matching
+        Object.entries(synonymMap).forEach(([key, synonyms]) => {
+          const wordMatchesSynonym = synonyms.some((syn) => syn.includes(word) || word.includes(syn));
+          if (wordMatchesSynonym) {
+            const snippetMatchesSynonym = synonyms.some((syn) => fullSnippetText.includes(syn));
+            if (snippetMatchesSynonym) {
+              score += 20;
+              matched.add(word);
+            }
+          }
+        });
+      });
+
+      // 3. Title match bonus
+      if (inputWords.some((w) => snip.title.toLowerCase().includes(w))) {
+        score += 30;
+      }
+
+      // 4. Tags match bonus
+      if (snip.tags) {
+        inputWords.forEach((w) => {
+          if (snip.tags!.toLowerCase().includes(w)) {
+            score += 25;
+          }
+        });
+      }
+
+      if (score > 0 && matched.size > 0) {
+        scored.push({
+          snippet: snip,
+          score,
+          matchedKeywords: Array.from(matched),
+        });
+      }
+    });
+
+    // Sort by highest score first
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 4); // Top 4 recommendations
+  }, [typedSms, snippets]);
+
+  // Filtered Snippets for the bottom catalogue
   const filteredSnippets = useMemo(() => {
     return snippets.filter((item) => {
       // Category filter
@@ -362,8 +464,18 @@ export default function SmsAssistantPage() {
     });
   }, [snippets, selectedCategory, searchQuery]);
 
+  // Quick suggestion chips to populate composer
+  const quickTestChips = [
+    'kotha hoyeche kono issue nai',
+    'bkash e 800 taka payment peyechi',
+    'fiber tar chire geche line down',
+    'router restart dile thik hoyeche',
+    'grahok phone receive kore ni',
+    'onu optical loss beshi red light',
+  ];
+
   return (
-    <div className="min-h-screen bg-[#080d1a] text-slate-100 pb-20 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#080d1a] text-slate-100 pb-24 selection:bg-indigo-500 selection:text-white">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 bg-emerald-600 text-white font-medium text-xs rounded-xl shadow-2xl shadow-emerald-950/50 animate-in slide-in-from-top-4 duration-200">
@@ -377,19 +489,19 @@ export default function SmsAssistantPage() {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
-              <MessageSquare className="w-5 h-5 fill-white text-white" />
+              <Bot className="w-5 h-5 fill-white text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
-                  OneSky SMS &amp; Snippet Manager
+                  Smart SMS &amp; Snippet AI Assistant
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-mono">
-                  ৩-ইন-১ ভাষা (Banglish / বাংলা / English)
+                  কীওয়ার্ড রিকমেন্ডার রেডি
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                একই টেমপ্লেটে বাংলিশ, পূর্ণাঙ্গ বাংলা এবং ইংরেজি ৩টি ভার্সন
+                টাইপ করলেই প্রাসঙ্গিক SMS সুপারিশ করবে এবং ১-ক্লিকে কপি হবে
               </p>
             </div>
           </div>
@@ -417,7 +529,220 @@ export default function SmsAssistantPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-8 mt-6 space-y-6">
-        {/* Global Controls & Search Bar */}
+        {/* ======================================================== */}
+        {/* NEW CORE FEATURE: SMART SMS TYPING & KEYWORD RECOMMENDER */}
+        {/* ======================================================== */}
+        <div className="bg-gradient-to-br from-[#0f172a] via-[#141e3c] to-[#0f172a] border-2 border-indigo-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-indigo-950/40 relative">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Smart SMS Composer &amp; Keyword Matcher</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>সুপারিশের ভাষা:</span>
+              <div className="flex items-center gap-1 bg-[#090d16] p-0.5 rounded-lg border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setRecommendedLang('banglish')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                    recommendedLang === 'banglish' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400'
+                  }`}
+                >
+                  🔤 বাংলিশ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecommendedLang('bangla')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                    recommendedLang === 'bangla' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400'
+                  }`}
+                >
+                  🇧🇩 বাংলা
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecommendedLang('english')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                    recommendedLang === 'english' ? 'bg-sky-600 text-white font-bold' : 'text-slate-400'
+                  }`}
+                >
+                  🇬🇧 English
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-300 mb-3">
+            আপনি এখানে আপনার কথা বা তথ্য বাংলায় বা বাংলিশে টাইপ করুন। নিচের কীওয়ার্ড ম্যাচ করে স্বয়ংক্রিয়ভাবে সেরা SMS রেডি করে দেওয়া হবে:
+          </p>
+
+          {/* Typing Textarea */}
+          <div className="relative">
+            <textarea
+              ref={composerInputRef}
+              rows={3}
+              value={typedSms}
+              onChange={(e) => setTypedSms(e.target.value)}
+              placeholder="এখানে লিখুন... (যেমন: 'client er sathe kotha hoyeche kono issue nai' অথবা 'bkash e payment peyechi')..."
+              className="w-full bg-[#090d16]/90 border border-slate-700 focus:border-indigo-500 rounded-2xl p-4 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition shadow-inner font-sans"
+            />
+            {typedSms && (
+              <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTypedSms('')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition"
+                >
+                  মুছে ফেলুন
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyComposer}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>টাইপকৃত টেক্সট কপি</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Test Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+            <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+              <Lightbulb className="w-3 h-3 text-amber-400" />
+              <span>ক্লিক করে টেস্ট করুন:</span>
+            </span>
+            {quickTestChips.map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setTypedSms(chip)}
+                className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-800/80 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-300 border border-slate-700 hover:border-indigo-500/40 transition"
+              >
+                "{chip}"
+              </button>
+            ))}
+          </div>
+
+          {/* REAL-TIME KEYWORD RECOMMENDATIONS CONTAINER */}
+          {recommendedSnippets.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-slate-800/80 space-y-3 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-emerald-400 flex items-center gap-1.5 uppercase tracking-wide">
+                  <CheckCheck className="w-4 h-4" />
+                  <span>কীওয়ার্ড ম্যাচ অনুযায়ী সুপারিশকৃত SMS ({recommendedSnippets.length})</span>
+                </h3>
+                <span className="text-[10px] text-slate-400">
+                  সরাসরি কপি করুন বা ইনপুট বক্সে ভ্যালু বসান
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {recommendedSnippets.map(({ snippet, score, matchedKeywords }) => {
+                  const rendered = getRenderedContent(snippet, recommendedLang);
+                  const vars = extractVariables(snippet);
+                  const isCopied = copiedSnippetId === snippet.id;
+                  const values = variableInputs[snippet.id] || {};
+
+                  return (
+                    <div
+                      key={snippet.id}
+                      className="bg-[#090d16] border-2 border-emerald-500/40 hover:border-emerald-500/80 rounded-2xl p-4 shadow-xl flex flex-col justify-between transition-all"
+                    >
+                      <div>
+                        {/* Recommendation Header */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono">
+                              🎯 মিল পাওয়া কীওয়ার্ড: {matchedKeywords.map((k) => `"${k}"`).join(', ')}
+                            </span>
+                            <h4 className="text-xs font-bold text-white mt-1.5">{snippet.title}</h4>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {snippet.categoryName || 'General'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Variables inputs if template has variables */}
+                        {vars.length > 0 && (
+                          <div className="my-2 p-2 bg-[#0f172a] border border-slate-800 rounded-xl space-y-1.5">
+                            <span className="text-[10px] font-bold text-indigo-400 block">
+                              ডাইনামিক ভ্যালু বসান:
+                            </span>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {vars.map((v) => (
+                                <div key={v}>
+                                  <label className="block text-[9px] font-mono text-slate-400 truncate">
+                                    {`{${v}}`}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={values[v] || ''}
+                                    onChange={(e) => handleVariableChange(snippet.id, v, e.target.value)}
+                                    placeholder={`যেমন: ${v}`}
+                                    className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded px-2 py-0.5 text-xs text-white placeholder:text-slate-600 focus:outline-none"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recommended Text Preview */}
+                        <div className="p-3 bg-[#0f172a]/90 rounded-xl border border-slate-800 text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap select-all">
+                          {rendered}
+                        </div>
+                      </div>
+
+                      {/* Recommendation Actions */}
+                      <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-800/60">
+                        {/* Language Switch for this recommended item */}
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span className="text-slate-500">ভাষা:</span>
+                          <span className="font-bold text-indigo-400 uppercase font-mono">
+                            {recommendedLang}
+                          </span>
+                        </div>
+
+                        {/* 1-Click Copy Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(snippet, recommendedLang)}
+                          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition shadow-lg ${
+                            isCopied
+                              ? 'bg-emerald-600 text-white shadow-emerald-600/30'
+                              : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30'
+                          }`}
+                        >
+                          {isCopied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>কপি হয়েছে!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>সুপারিশকৃত SMS কপি করুন</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Global Search & Catalogue Filter */}
         <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
             {/* Search Input */}
@@ -428,7 +753,7 @@ export default function SmsAssistantPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="মেসেজের নাম, ট্যাগ বা টেক্সট লিখে খুঁজুন... (Ctrl + K)"
+                placeholder="সকল টেমপ্লেট থেকে খুঁজুন... (Ctrl + K)"
                 className="w-full bg-[#090d16] border border-slate-800 focus:border-indigo-500 rounded-xl pl-10 pr-24 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none transition"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 text-[10px] text-slate-500 font-mono bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700">
@@ -517,7 +842,7 @@ export default function SmsAssistantPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1">
             <span>
-              দেখাচ্ছে <strong>{filteredSnippets.length}</strong> টি ৩-ইন-১ টেমপ্লেট
+              মোট সংরক্ষিত টেমপ্লেট: <strong>{filteredSnippets.length}</strong> টি
             </span>
             <span className="flex items-center gap-1 text-[11px] text-indigo-400">
               <Sparkles className="w-3.5 h-3.5" />

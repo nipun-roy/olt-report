@@ -161,13 +161,13 @@ export default function SmsAssistantPage() {
   // Helper to get active text for snippet based on selected language
   const getSnippetRawText = (snippet: Snippet, lang: LanguageType): string => {
     if (lang === 'bangla') {
-      return snippet.contentBangla || snippet.content || '';
+      return snippet.contentBangla || snippet.content || snippet.contentBanglish || snippet.contentEnglish || '';
     }
     if (lang === 'banglish') {
-      return snippet.contentBanglish || snippet.content || snippet.contentBangla || '';
+      return snippet.contentBanglish || snippet.content || snippet.contentBangla || snippet.contentEnglish || '';
     }
     if (lang === 'english') {
-      return snippet.contentEnglish || snippet.content || snippet.contentBangla || '';
+      return snippet.contentEnglish || snippet.content || snippet.contentBanglish || snippet.contentBangla || '';
     }
     return snippet.content || '';
   };

@@ -18,20 +18,23 @@ export const reports = sqliteTable('reports', {
 // Categories Table: For SMS / Snippets
 export const categories = sqliteTable('categories', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(), // যেমন: Payment, Delivery, Network Support
+  name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
 });
 
-// Quick SMS / Snippets Table
+// Quick SMS / Snippets Table with 3-language support (Bangla, Banglish, English)
 export const snippets = sqliteTable('snippets', {
   id: text('id').primaryKey(),
-  title: text('title').notNull(), // যেমন: "পেমেন্ট পাওয়ার পর মেসেজ"
-  content: text('content').notNull(), // মূল টেক্সট (যেখানে {name}, {amount} ইত্যাদি থাকতে পারে)
+  title: text('title').notNull(),
+  content: text('content').notNull(), // Default fallback text
+  contentBangla: text('content_bangla'), // পূর্ণাঙ্গ বাংলা (Full Bangla)
+  contentBanglish: text('content_banglish'), // বাংলিশ (Banglish)
+  contentEnglish: text('content_english'), // পূর্ণাঙ্গ ইংরেজি (Full English)
   categoryId: text('category_id'),
   categoryName: text('category_name'),
-  tags: text('tags'), // কমা দিয়ে সেপারেট করা ট্যাগ (e.g. "bkash,nagad,payment")
+  tags: text('tags'),
   isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
-  copyCount: integer('copy_count').default(0), // কতবার কপি হয়েছে
+  copyCount: integer('copy_count').default(0),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 

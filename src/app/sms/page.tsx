@@ -24,16 +24,22 @@ import {
   ArrowRight,
   ExternalLink,
   Globe,
-  PhoneCall,
+  Languages,
   CheckCheck,
   Radio,
+  PhoneCall,
   Wrench,
 } from 'lucide-react';
+
+type LanguageType = 'banglish' | 'bangla' | 'english';
 
 interface Snippet {
   id: string;
   title: string;
   content: string;
+  contentBangla?: string;
+  contentBanglish?: string;
+  contentEnglish?: string;
   categoryId?: string;
   categoryName?: string;
   tags?: string;
@@ -53,6 +59,12 @@ export default function SmsAssistantPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Global default language
+  const [globalLang, setGlobalLang] = useState<LanguageType>('banglish');
+
+  // Per-card language selection: { [snippetId]: 'banglish' | 'bangla' | 'english' }
+  const [cardLang, setCardLang] = useState<Record<string, LanguageType>>({});
+
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -68,10 +80,13 @@ export default function SmsAssistantPage() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [modalTitle, setModalTitle] = useState<string>('');
-  const [modalContent, setModalContent] = useState<string>('');
+  const [modalBangla, setModalBangla] = useState<string>('');
+  const [modalBanglish, setModalBanglish] = useState<string>('');
+  const [modalEnglish, setModalEnglish] = useState<string>('');
   const [modalCategory, setModalCategory] = useState<string>('');
   const [modalTags, setModalTags] = useState<string>('');
   const [modalPinned, setModalPinned] = useState<boolean>(false);
+  const [modalActiveTab, setModalActiveTab] = useState<LanguageType>('banglish');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Delete modal
@@ -120,20 +135,36 @@ export default function SmsAssistantPage() {
     }, 2500);
   };
 
-  // Helper to extract variables {variable_name} from text
-  const extractVariables = (text: string): string[] => {
-    const matches = text.match(/\{([a-zA-Z0-9_\u0980-\u09FF]+)\}/g);
+  // Helper to get active text for snippet based on selected language
+  const getSnippetRawText = (snippet: Snippet, lang: LanguageType): string => {
+    if (lang === 'bangla') {
+      return snippet.contentBangla || snippet.content || '';
+    }
+    if (lang === 'banglish') {
+      return snippet.contentBanglish || snippet.content || snippet.contentBangla || '';
+    }
+    if (lang === 'english') {
+      return snippet.contentEnglish || snippet.content || snippet.contentBangla || '';
+    }
+    return snippet.content || '';
+  };
+
+  // Extract variables {variable_name} from all available versions
+  const extractVariables = (snippet: Snippet): string[] => {
+    const combined = `${snippet.content} ${snippet.contentBangla || ''} ${snippet.contentBanglish || ''} ${snippet.contentEnglish || ''}`;
+    const matches = combined.match(/\{([a-zA-Z0-9_\u0980-\u09FF]+)\}/g);
     if (!matches) return [];
     return Array.from(new Set(matches.map((m) => m.slice(1, -1))));
   };
 
   // Interpolate text with variable inputs
-  const getRenderedContent = (snippet: Snippet): string => {
-    const vars = extractVariables(snippet.content);
-    if (vars.length === 0) return snippet.content;
+  const getRenderedContent = (snippet: Snippet, lang: LanguageType): string => {
+    const raw = getSnippetRawText(snippet, lang);
+    const vars = extractVariables(snippet);
+    if (vars.length === 0) return raw;
 
     const values = variableInputs[snippet.id] || {};
-    let rendered = snippet.content;
+    let rendered = raw;
 
     vars.forEach((v) => {
       const val = values[v];
@@ -163,14 +194,15 @@ export default function SmsAssistantPage() {
     }));
   };
 
-  // 1-Click Copy logic for full Snippet cards
-  const handleCopy = async (snippet: Snippet) => {
-    const textToCopy = getRenderedContent(snippet);
+  // 1-Click Copy logic
+  const handleCopy = async (snippet: Snippet, lang: LanguageType) => {
+    const textToCopy = getRenderedContent(snippet, lang);
+    const langLabel = lang === 'banglish' ? 'বাংলিশ' : lang === 'bangla' ? 'বাংলা' : 'English';
 
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopiedSnippetId(snippet.id);
-      showToast(`"${snippet.title}" ক্লিপবোর্ডে কপি হয়েছে!`);
+      showToast(`"${snippet.title}" (${langLabel}) কপি হয়েছে!`);
 
       // Increment copy count in database
       fetch('/api/snippets', {
@@ -189,16 +221,6 @@ export default function SmsAssistantPage() {
       }, 2000);
     } catch (err) {
       alert('কপি করতে ব্যর্থ হয়েছে: ' + err);
-    }
-  };
-
-  // Copy quick English remark
-  const handleCopyQuickEnglish = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(`ইংরেজি রিমার্ক কপি হয়েছে: "${label}"`);
-    } catch (err) {
-      alert('কপি করতে সমস্যা হয়েছে: ' + err);
     }
   };
 
@@ -227,17 +249,23 @@ export default function SmsAssistantPage() {
     if (snippet) {
       setEditingSnippet(snippet);
       setModalTitle(snippet.title);
-      setModalContent(snippet.content);
-      setModalCategory(snippet.categoryName || 'Payment');
+      setModalBangla(snippet.contentBangla || snippet.content || '');
+      setModalBanglish(snippet.contentBanglish || '');
+      setModalEnglish(snippet.contentEnglish || '');
+      setModalCategory(snippet.categoryName || 'Support & Line Issue (সাপোর্ট)');
       setModalTags(snippet.tags || '');
       setModalPinned(snippet.isPinned);
+      setModalActiveTab('banglish');
     } else {
       setEditingSnippet(null);
       setModalTitle('');
-      setModalContent('');
-      setModalCategory(categories[0]?.name || 'Payment');
+      setModalBangla('');
+      setModalBanglish('');
+      setModalEnglish('');
+      setModalCategory(categories[0]?.name || 'Support & Line Issue (সাপোর্ট)');
       setModalTags('');
       setModalPinned(false);
+      setModalActiveTab('banglish');
     }
     setShowModal(true);
   };
@@ -245,56 +273,39 @@ export default function SmsAssistantPage() {
   // Save Snippet (Create or Update)
   const handleSaveSnippet = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalTitle.trim() || !modalContent.trim()) {
-      alert('অনুগ্রহ করে শিরোনাম ও মূল টেক্সট পূরণ করুন।');
+    const hasAnyContent = modalBangla.trim() || modalBanglish.trim() || modalEnglish.trim();
+    if (!modalTitle.trim() || !hasAnyContent) {
+      alert('অনুগ্রহ করে শিরোনাম এবং অন্তত একটি ভাষার টেক্সট পূরণ করুন।');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      if (editingSnippet) {
-        // Update
-        const res = await fetch('/api/snippets', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingSnippet.id,
-            title: modalTitle,
-            content: modalContent,
-            categoryName: modalCategory,
-            tags: modalTags,
-            isPinned: modalPinned,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('মেসেজ সফলভাবে আপডেট হয়েছে!');
-          fetchSnippets();
-          setShowModal(false);
-        } else {
-          alert(data.error || 'Failed to update');
-        }
+      const payload = {
+        id: editingSnippet?.id,
+        title: modalTitle,
+        content: modalBangla || modalBanglish || modalEnglish,
+        contentBangla: modalBangla,
+        contentBanglish: modalBanglish,
+        contentEnglish: modalEnglish,
+        categoryName: modalCategory,
+        tags: modalTags,
+        isPinned: modalPinned,
+      };
+
+      const res = await fetch('/api/snippets', {
+        method: editingSnippet ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(editingSnippet ? 'মেসেজ আপডেট হয়েছে!' : 'নতুন ৩-ভাষার টেমপ্লেট তৈরি হয়েছে!');
+        fetchSnippets();
+        setShowModal(false);
       } else {
-        // Create
-        const res = await fetch('/api/snippets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: modalTitle,
-            content: modalContent,
-            categoryName: modalCategory,
-            tags: modalTags,
-            isPinned: modalPinned,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('নতুন মেসেজ টেমপ্লেট তৈরি হয়েছে!');
-          fetchSnippets();
-          setShowModal(false);
-        } else {
-          alert(data.error || 'Failed to create');
-        }
+        alert(data.error || 'Failed to save');
       }
     } catch (err: any) {
       alert('Error: ' + err.message);
@@ -322,9 +333,16 @@ export default function SmsAssistantPage() {
     }
   };
 
-  // Insert variable tag into modal textarea
+  // Insert variable tag into active modal textarea
   const insertVariable = (varName: string) => {
-    setModalContent((prev) => `${prev}{${varName}}`);
+    const tag = `{${varName}}`;
+    if (modalActiveTab === 'banglish') {
+      setModalBanglish((prev) => `${prev}${tag}`);
+    } else if (modalActiveTab === 'bangla') {
+      setModalBangla((prev) => `${prev}${tag}`);
+    } else {
+      setModalEnglish((prev) => `${prev}${tag}`);
+    }
   };
 
   // Filtered Snippets
@@ -337,52 +355,12 @@ export default function SmsAssistantPage() {
       // Search filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const full = `${item.title} ${item.content} ${item.tags || ''} ${item.categoryName || ''}`.toLowerCase();
+        const full = `${item.title} ${item.content} ${item.contentBangla || ''} ${item.contentBanglish || ''} ${item.contentEnglish || ''} ${item.tags || ''} ${item.categoryName || ''}`.toLowerCase();
         if (!full.includes(q)) return false;
       }
       return true;
     });
   }, [snippets, selectedCategory, searchQuery]);
-
-  // Quick English presets specifically for client conversation outcomes
-  const quickEnglishPresets = [
-    {
-      label: 'কথা হয়েছে, সমস্যা নেই',
-      situation: 'Client confirmed internet is fine',
-      text: 'Spoke with the client. Confirmed that the internet connection is running smoothly and no issues were found at present. Service is fully operational.',
-      icon: <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />,
-    },
-    {
-      label: 'টিকেট সমাধান ও ক্লোজ',
-      situation: 'Resolution message for ticket',
-      text: 'Dear client, as per our conversation, your internet connection is now working properly with no reported issues. Ticket has been marked as resolved. Thank you.',
-      icon: <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />,
-    },
-    {
-      label: 'অপটিক্যাল সিগন্যাল নরমাল',
-      situation: 'Optical loss verified normal',
-      text: 'Spoke with customer. Optical RX power verified at optimal level. Customer confirmed browsing speed and stability are fine. No further issue.',
-      icon: <Radio className="w-3.5 h-3.5 text-purple-400" />,
-    },
-    {
-      label: 'ফোন রিসিভ করেনি',
-      situation: 'Client unanswered / follow-up pending',
-      text: 'Attempted to contact the client regarding line status, but the call was unanswered. Line shows online in OLT. A follow-up attempt will be made.',
-      icon: <PhoneCall className="w-3.5 h-3.5 text-amber-400" />,
-    },
-    {
-      label: 'রাউটার রিস্টার্ট করানো হয়েছে',
-      situation: 'Guided client to reboot',
-      text: 'Communicated with client. Guided to power-cycle the Wi-Fi router and ONU. Link re-established with clean latency. Client confirmed issue resolved.',
-      icon: <RotateCcw className="w-3.5 h-3.5 text-blue-400" />,
-    },
-    {
-      label: 'তার মেরামত সম্পন্ন',
-      situation: 'Drop cable spliced & restored',
-      text: 'Field maintenance team inspected optical link. Repaired damaged fiber drop core; optical signal restored to normal. Customer verified stable connection.',
-      icon: <Wrench className="w-3.5 h-3.5 text-teal-400" />,
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#080d1a] text-slate-100 pb-20 selection:bg-indigo-500 selection:text-white">
@@ -404,23 +382,20 @@ export default function SmsAssistantPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
-                  Quick SMS &amp; Snippet Manager
+                  OneSky SMS &amp; Snippet Manager
                 </h1>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-mono">
-                  1-Click Copy
-                </span>
-                <span className="hidden md:inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  Auto English Ready
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-mono">
+                  ৩-ইন-১ ভাষা (Banglish / বাংলা / English)
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                ডাইনামিক ভেরিয়েবল ও অটো-ইংলিশ রিমার্কস সহ রেডিমেড মেসেজ ড্যাশবোর্ড
+                একই টেমপ্লেটে বাংলিশ, পূর্ণাঙ্গ বাংলা এবং ইংরেজি ৩টি ভার্সন
               </p>
             </div>
           </div>
 
           {/* Navigation Switcher between OLT Report & SMS Manager */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold border border-slate-700 transition"
@@ -435,64 +410,18 @@ export default function SmsAssistantPage() {
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition"
             >
               <Plus className="w-4 h-4" />
-              <span>নতুন SMS টেমপ্লেট</span>
+              <span>নতুন ৩-ইন-১ টেমপ্লেট</span>
             </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-8 mt-6 space-y-6">
-        {/* NEW FEATURE: Quick English Remarks Section ("client r sathe kotha hoye se.. kno issue pasche na akhon") */}
-        <div className="bg-gradient-to-r from-[#0f172a] via-[#131d38] to-[#0f172a] border border-indigo-500/30 rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-sky-400" />
-                <span>Auto English Client Remarks (ক্লায়েন্টের সাথে কথা বলা শেষে রেডি রিমার্ক)</span>
-              </h2>
-            </div>
-            <span className="text-[11px] text-indigo-300 font-medium">
-              যেকোনো কার্ডে ক্লিক করলেই ইংরেজি টেক্সট সাথে সাথে কপি হবে 📋
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-            {quickEnglishPresets.map((preset, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleCopyQuickEnglish(preset.text, preset.label)}
-                className="group cursor-pointer bg-[#090d16]/90 hover:bg-indigo-950/40 border border-slate-800 hover:border-indigo-500/60 rounded-xl p-3 transition-all flex flex-col justify-between text-left shadow"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
-                      {preset.icon}
-                      <span>{preset.label}</span>
-                    </span>
-                    <span className="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-400 flex items-center gap-0.5 transition font-semibold">
-                      <Copy className="w-3 h-3" />
-                      <span>কপি করুন</span>
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300 font-sans leading-relaxed line-clamp-2">
-                    "{preset.text}"
-                  </p>
-                </div>
-                <div className="mt-2.5 text-[10px] text-slate-500 flex items-center justify-between border-t border-slate-800/60 pt-1.5">
-                  <span className="truncate">{preset.situation}</span>
-                  <span className="text-indigo-400 group-hover:text-indigo-300 font-mono text-[9px] shrink-0">1-Click Copy</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Search Bar & Instant Filter */}
+        {/* Global Controls & Search Bar */}
         <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
             {/* Search Input */}
-            <div className="relative flex-1 w-full">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 ref={searchInputRef}
@@ -509,19 +438,50 @@ export default function SmsAssistantPage() {
               </div>
             </div>
 
-            {/* Clear Search */}
-            {searchQuery && (
+            {/* Global Language Switcher */}
+            <div className="flex items-center gap-1 bg-[#090d16] p-1 rounded-xl border border-slate-800 self-start sm:self-auto shrink-0">
+              <span className="text-[11px] text-slate-400 font-semibold px-2 flex items-center gap-1">
+                <Languages className="w-3.5 h-3.5 text-indigo-400" />
+                <span>সব কার্ডের ভাষা:</span>
+              </span>
               <button
-                onClick={() => setSearchQuery('')}
-                className="text-xs text-slate-400 hover:text-white px-2 py-1"
+                type="button"
+                onClick={() => setGlobalLang('banglish')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  globalLang === 'banglish'
+                    ? 'bg-indigo-600 text-white shadow font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                মুছে ফেলুন
+                🔤 বাংলিশ
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setGlobalLang('bangla')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  globalLang === 'bangla'
+                    ? 'bg-emerald-600 text-white shadow font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                🇧🇩 বাংলা
+              </button>
+              <button
+                type="button"
+                onClick={() => setGlobalLang('english')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  globalLang === 'english'
+                    ? 'bg-sky-600 text-white shadow font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                🇬🇧 English
+              </button>
+            </div>
           </div>
 
           {/* Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar border-t border-slate-800/60 pt-3">
             <button
               onClick={() => setSelectedCategory('ALL')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
@@ -557,11 +517,11 @@ export default function SmsAssistantPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1">
             <span>
-              দেখাচ্ছে <strong>{filteredSnippets.length}</strong> টি টেমপ্লেট
+              দেখাচ্ছে <strong>{filteredSnippets.length}</strong> টি ৩-ইন-১ টেমপ্লেট
             </span>
             <span className="flex items-center gap-1 text-[11px] text-indigo-400">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{`{ভেরিয়েবল}`} থাকলে ইনপুট বক্স স্বয়ংক্রিয়ভাবে সক্রিয় হবে</span>
+              <span>কার্ডের ভাষা অপশনে ক্লিক করে যেকোনো ভার্সন এক ক্লিকে কপি করুন</span>
             </span>
           </div>
 
@@ -579,9 +539,10 @@ export default function SmsAssistantPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredSnippets.map((snippet) => {
-                const vars = extractVariables(snippet.content);
+                const currentLang = cardLang[snippet.id] || globalLang;
+                const vars = extractVariables(snippet);
                 const isCopied = copiedSnippetId === snippet.id;
-                const rendered = getRenderedContent(snippet);
+                const rendered = getRenderedContent(snippet, currentLang);
                 const values = variableInputs[snippet.id] || {};
                 const hasFilledVars = Object.values(values).some((v) => v.trim() !== '');
 
@@ -596,7 +557,7 @@ export default function SmsAssistantPage() {
                   >
                     <div>
                       {/* Card Header */}
-                      <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             {snippet.isPinned && (
@@ -642,19 +603,62 @@ export default function SmsAssistantPage() {
                         </div>
                       </div>
 
+                      {/* 3-LANGUAGE SELECTOR TABS ON THE CARD */}
+                      <div className="my-2 flex items-center gap-1 bg-[#090d16] p-1 rounded-xl border border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCardLang((prev) => ({ ...prev, [snippet.id]: 'banglish' }))
+                          }
+                          className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold transition text-center ${
+                            currentLang === 'banglish'
+                              ? 'bg-indigo-600 text-white shadow font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🔤 বাংলিশ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCardLang((prev) => ({ ...prev, [snippet.id]: 'bangla' }))
+                          }
+                          className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold transition text-center ${
+                            currentLang === 'bangla'
+                              ? 'bg-emerald-600 text-white shadow font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🇧🇩 বাংলা
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCardLang((prev) => ({ ...prev, [snippet.id]: 'english' }))
+                          }
+                          className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold transition text-center ${
+                            currentLang === 'english'
+                              ? 'bg-sky-600 text-white shadow font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🇬🇧 English
+                        </button>
+                      </div>
+
                       {/* Dynamic Variables Inputs Section (if placeholders exist) */}
                       {vars.length > 0 && (
-                        <div className="my-3 p-3 bg-[#090d16] border border-indigo-500/20 rounded-xl space-y-2">
+                        <div className="my-2.5 p-3 bg-[#090d16] border border-indigo-500/20 rounded-xl space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-indigo-400 flex items-center gap-1">
                               <Sparkles className="w-3 h-3" />
-                              <span>ডাইনামিক তথ্য পূরণ করুন:</span>
+                              <span>ডাইনামিক ভ্যালু লিখুন:</span>
                             </span>
                             {hasFilledVars && (
                               <button
                                 onClick={() => handleResetVariables(snippet.id)}
                                 className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition"
-                                title="সব ভ্যালু ক্লিয়ার করুন"
+                                title="সব ভ্যালু রিসেট করুন"
                               >
                                 <RotateCcw className="w-3 h-3" />
                                 <span>রিসেট</span>
@@ -682,7 +686,7 @@ export default function SmsAssistantPage() {
                       )}
 
                       {/* Content Preview Box */}
-                      <div className="relative mt-2 p-3 bg-[#090d16] rounded-xl border border-slate-800/80 text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap select-all">
+                      <div className="relative mt-2 p-3 bg-[#090d16] rounded-xl border border-slate-800/80 text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap select-all">
                         {rendered}
                       </div>
 
@@ -702,7 +706,7 @@ export default function SmsAssistantPage() {
                     </div>
 
                     {/* Card Footer: Copy Count & 1-Click Copy Button */}
-                    <div className="flex items-center justify-between gap-3 pt-4 mt-3 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between gap-3 pt-3.5 mt-3 border-t border-slate-800/80">
                       <div className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
                         {snippet.copyCount > 0 ? (
                           <span className="flex items-center gap-1 text-amber-400/90 font-semibold">
@@ -715,10 +719,14 @@ export default function SmsAssistantPage() {
                       </div>
 
                       <button
-                        onClick={() => handleCopy(snippet)}
+                        onClick={() => handleCopy(snippet, currentLang)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-lg ${
                           isCopied
                             ? 'bg-emerald-600 text-white shadow-emerald-600/30'
+                            : currentLang === 'bangla'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
+                            : currentLang === 'english'
+                            ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/30'
                             : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
                         }`}
                       >
@@ -730,7 +738,13 @@ export default function SmsAssistantPage() {
                         ) : (
                           <>
                             <Copy className="w-4 h-4" />
-                            <span>মেসেজ কপি করুন</span>
+                            <span>
+                              {currentLang === 'banglish'
+                                ? 'বাংলিশ কপি করুন'
+                                : currentLang === 'bangla'
+                                ? 'বাংলা কপি করুন'
+                                : 'Copy English'}
+                            </span>
                           </>
                         )}
                       </button>
@@ -743,14 +757,14 @@ export default function SmsAssistantPage() {
         </div>
       </main>
 
-      {/* Add / Edit Snippet Modal */}
+      {/* Add / Edit Snippet Modal with 3 Language Tabs */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+          <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-indigo-400" />
-                <span>{editingSnippet ? 'SMS টেমপ্লেট এডিট করুন' : 'নতুন SMS টেমপ্লেট তৈরি'}</span>
+                <span>{editingSnippet ? '৩-ইন-১ টেমপ্লেট এডিট করুন' : 'নতুন ৩-ইন-১ SMS টেমপ্লেট'}</span>
               </h3>
               <button
                 onClick={() => setShowModal(false)}
@@ -771,7 +785,7 @@ export default function SmsAssistantPage() {
                   required
                   value={modalTitle}
                   onChange={(e) => setModalTitle(e.target.value)}
-                  placeholder="যেমন: Spoke with client - No issue found"
+                  placeholder="যেমন: ক্লায়েন্টের সাথে কথা হয়েছে, সমস্যা নেই"
                   className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none"
                 />
               </div>
@@ -789,24 +803,60 @@ export default function SmsAssistantPage() {
                       {c.name}
                     </option>
                   ))}
-                  <option value="English Remarks (ইংরেজি রিমার্কস)">English Remarks (ইংরেজি রিমার্কস)</option>
                   <option value="General">General (সাধারণ)</option>
                 </select>
               </div>
 
-              {/* Content with Variable Insert Helpers */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
+              {/* 3 Language Sub-Tabs in Modal */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300">
-                    মূল মেসেজের টেক্সট *
+                    ৩টি ভাষার টেক্সট পূরণ করুন:
                   </label>
                   <span className="text-[10px] text-indigo-400">
-                    {`{name}, {amount} ইত্যাদি ভেরিয়েবল ব্যবহার করতে পারেন`}
+                    {`{name}, {amount} ভেরিয়েবল ব্যবহার করতে পারেন`}
                   </span>
                 </div>
 
-                {/* Quick Insert Buttons */}
-                <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                {/* Tab buttons */}
+                <div className="flex items-center gap-1 bg-[#090d16] p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setModalActiveTab('banglish')}
+                    className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold transition ${
+                      modalActiveTab === 'banglish'
+                        ? 'bg-indigo-600 text-white font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🔤 বাংলিশ ভার্সন
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalActiveTab('bangla')}
+                    className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold transition ${
+                      modalActiveTab === 'bangla'
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🇧🇩 বাংলা ভার্সন
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalActiveTab('english')}
+                    className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold transition ${
+                      modalActiveTab === 'english'
+                        ? 'bg-sky-600 text-white font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🇬🇧 ইংলিশ ভার্সন
+                  </button>
+                </div>
+
+                {/* Variable helper chips */}
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] text-slate-500 font-semibold">ক্লিক করে যোগ করুন:</span>
                   {['name', 'amount', 'trx_id', 'due_date', 'area', 'onu_id', 'port', 'phone', 'ticket_id', 'time'].map((v) => (
                     <button
@@ -820,14 +870,51 @@ export default function SmsAssistantPage() {
                   ))}
                 </div>
 
-                <textarea
-                  required
-                  rows={5}
-                  value={modalContent}
-                  onChange={(e) => setModalContent(e.target.value)}
-                  placeholder="যেমন: Spoke with client {name}. Confirmed connection is working properly..."
-                  className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 focus:outline-none font-sans"
-                />
+                {/* Textarea depending on active modal tab */}
+                {modalActiveTab === 'banglish' && (
+                  <div>
+                    <span className="text-[10px] text-indigo-400 block mb-1">
+                      🔤 বাংলিশ টেক্সট (যেমন: Client {`{name}`} er sathe kotha hoyeche, issue resolve...)
+                    </span>
+                    <textarea
+                      rows={4}
+                      value={modalBanglish}
+                      onChange={(e) => setModalBanglish(e.target.value)}
+                      placeholder="বাংলিশ ফরম্যাট লিখুন..."
+                      className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {modalActiveTab === 'bangla' && (
+                  <div>
+                    <span className="text-[10px] text-emerald-400 block mb-1">
+                      🇧🇩 পূর্ণাঙ্গ বাংলা টেক্সট (যেমন: গ্রাহক {`{name}`}-এর সাথে কথা হয়েছে, লাইন স্বাভাবিক...)
+                    </span>
+                    <textarea
+                      rows={4}
+                      value={modalBangla}
+                      onChange={(e) => setModalBangla(e.target.value)}
+                      placeholder="পূর্ণাঙ্গ বাংলা ফরম্যাট লিখুন..."
+                      className="w-full bg-[#090d16] border border-slate-700 focus:border-emerald-500 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {modalActiveTab === 'english' && (
+                  <div>
+                    <span className="text-[10px] text-sky-400 block mb-1">
+                      🇬🇧 পূর্ণাঙ্গ ইংরেজি টেক্সট (যেমন: Spoke with client {`{name}`}. No issues found...)
+                    </span>
+                    <textarea
+                      rows={4}
+                      value={modalEnglish}
+                      onChange={(e) => setModalEnglish(e.target.value)}
+                      placeholder="Enter full English format..."
+                      className="w-full bg-[#090d16] border border-slate-700 focus:border-sky-500 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 focus:outline-none font-sans"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Tags */}
@@ -839,7 +926,7 @@ export default function SmsAssistantPage() {
                   type="text"
                   value={modalTags}
                   onChange={(e) => setModalTags(e.target.value)}
-                  placeholder="যেমন: english, client, resolved, support"
+                  placeholder="যেমন: client, call, resolved, payment"
                   className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none"
                 />
               </div>

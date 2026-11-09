@@ -66,12 +66,15 @@ export async function ensureTablesExist() {
       );
     `);
 
-    // 3. Snippets table
+    // 3. Snippets table with 3-language columns
     await client.execute(`
       CREATE TABLE IF NOT EXISTS snippets (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
+        content_bangla TEXT,
+        content_banglish TEXT,
+        content_english TEXT,
         category_id TEXT,
         category_name TEXT,
         tags TEXT,
@@ -81,14 +84,10 @@ export async function ensureTablesExist() {
       );
     `);
 
-    // Ensure English category exists
-    const catCheck = await client.execute("SELECT id FROM categories WHERE id = 'cat_english' OR slug = 'english'");
-    if (catCheck.rows.length === 0) {
-      await client.execute(`
-        INSERT INTO categories (id, name, slug)
-        VALUES ('cat_english', 'English Remarks (ইংরেজি রিমার্কস)', 'english');
-      `);
-    }
+    // Safely add columns if table was created earlier without them
+    try { await client.execute('ALTER TABLE snippets ADD COLUMN content_bangla TEXT;'); } catch {}
+    try { await client.execute('ALTER TABLE snippets ADD COLUMN content_banglish TEXT;'); } catch {}
+    try { await client.execute('ALTER TABLE snippets ADD COLUMN content_english TEXT;'); } catch {}
 
     initialized = true;
   } catch (err: any) {

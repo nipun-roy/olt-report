@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     if (search.trim()) {
       const q = search.trim();
       allSnippets = allSnippets.filter((s) => {
-        const text = `${s.title} ${s.content} ${s.tags || ''} ${s.categoryName || ''}`.toLowerCase();
+        const text = `${s.title} ${s.content} ${s.contentBangla || ''} ${s.contentBanglish || ''} ${s.contentEnglish || ''} ${s.tags || ''} ${s.categoryName || ''}`.toLowerCase();
         return text.includes(q);
       });
     }
@@ -55,7 +55,20 @@ export async function POST(request: Request) {
     await ensureTablesExist();
 
     const body = await request.json();
-    const { action, title, content, categoryId, categoryName, tags, isPinned, name, slug } = body;
+    const {
+      action,
+      title,
+      content,
+      contentBangla,
+      contentBanglish,
+      contentEnglish,
+      categoryId,
+      categoryName,
+      tags,
+      isPinned,
+      name,
+      slug,
+    } = body;
 
     // Handle new category creation
     if (action === 'create_category') {
@@ -77,9 +90,10 @@ export async function POST(request: Request) {
     }
 
     // Handle snippet creation
-    if (!title || !title.trim() || !content || !content.trim()) {
+    const mainContent = contentBangla || contentBanglish || contentEnglish || content;
+    if (!title || !title.trim() || !mainContent || !mainContent.trim()) {
       return NextResponse.json(
-        { success: false, error: 'মেসেজের শিরোনাম (Title) এবং মূল টেক্সট (Content) আবশ্যক।' },
+        { success: false, error: 'মেসেজের শিরোনাম (Title) এবং অন্তত একটি ভাষার টেক্সট পূরণ করুন।' },
         { status: 400 }
       );
     }
@@ -88,7 +102,10 @@ export async function POST(request: Request) {
     const newSnippet = {
       id: snippetId,
       title: title.trim(),
-      content: content.trim(),
+      content: mainContent.trim(),
+      contentBangla: contentBangla ? contentBangla.trim() : (content || ''),
+      contentBanglish: contentBanglish ? contentBanglish.trim() : '',
+      contentEnglish: contentEnglish ? contentEnglish.trim() : '',
       categoryId: categoryId || 'cat_payment',
       categoryName: categoryName || 'General',
       tags: tags ? tags.trim() : '',
@@ -116,7 +133,19 @@ export async function PUT(request: Request) {
     await ensureTablesExist();
 
     const body = await request.json();
-    const { id, action, title, content, categoryId, categoryName, tags, isPinned } = body;
+    const {
+      id,
+      action,
+      title,
+      content,
+      contentBangla,
+      contentBanglish,
+      contentEnglish,
+      categoryId,
+      categoryName,
+      tags,
+      isPinned,
+    } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Snippet ID is required' }, { status: 400 });
@@ -149,12 +178,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: true, isPinned: newPinState });
     }
 
+    const mainContent = contentBangla || contentBanglish || contentEnglish || content;
+
     // General update
     await db
       .update(snippets)
       .set({
         title: title?.trim(),
-        content: content?.trim(),
+        content: mainContent?.trim(),
+        contentBangla: contentBangla?.trim(),
+        contentBanglish: contentBanglish?.trim(),
+        contentEnglish: contentEnglish?.trim(),
         categoryId,
         categoryName,
         tags: tags?.trim(),

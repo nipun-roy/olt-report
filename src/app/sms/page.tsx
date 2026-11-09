@@ -33,6 +33,8 @@ import {
   Lightbulb,
   SlidersHorizontal,
   Bot,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 type LanguageType = 'banglish' | 'bangla' | 'english';
@@ -79,6 +81,85 @@ const synonymMap: Record<string, string[]> = {
   working: ['kaj korchi', 'কাজ করছি', 'কাজ চলছে', 'চেষ্টা করছি'],
 };
 
+// Clean default sentences when dynamic values are NOT added/needed
+const DEFAULT_CLEAN_SNIPPETS: Record<string, { bangla: string; banglish: string; english: string }> = {
+  snip_dual_link_down: {
+    bangla: '🚨 জরুরি নোটিশ: একই সাথে মেইন ও ব্যাকআপ লিঙ্ক ডাউন পাচ্ছি। ওএনইউ (ONU) পাওয়ার অফ দেখাচ্ছে। অনুগ্রহ করে পাওয়ার ও ফাইবার চেক করে দ্রুত আপডেট দিন। ⚡',
+    banglish: '🚨 Emergency Alert: Main link ebong backup link ekshathe down pacchi. ONU device power off dekhacche. Doyakore power source ebong fiber check kore druto update din. ⚡',
+    english: '🚨 Emergency Alert: We are getting main link and backup link down at the same time. Getting ONU device power off (Dying Gasp). Please check the power source/fiber and update us immediately. ⚡',
+  },
+  snip_maintenance_alert: {
+    bangla: '⚠️ জরুরি বিজ্ঞপ্তি: ফাইবার অপটিক ক্যাবল ক্ষতিগ্রস্ত হওয়ায় সাময়িক ইন্টারনেট সংযোগ বিঘ্নিত হতে পারে। 🛠️ দ্রুত সমাধানের কাজ চলছে। সাময়িক অসুবিধার জন্য আমরা আন্তরিকভাবে দুঃখিত। 🙏',
+    banglish: '⚠️ Joruri biggopti: Fiber optical cable khotigrostho howay samoyik internet bighnito hote pare. 🛠️ Druto somadhaner kaj cholche. Samoyik osubidhar jonno amra antorikbhabe dukkhito. 🙏',
+    english: '⚠️ Emergency Notice: Due to damaged optical fiber maintenance, internet service may be temporarily interrupted. 🛠️ Restoration work is in progress. We apologize for the inconvenience. 🙏',
+  },
+  snip_fiber_restored: {
+    bangla: '🛠️ ফিল্ড টিম ফাইবার ক্যাবল মেরামত সম্পন্ন করেছে। অপটিক্যাল সিগন্যাল পাওয়ার স্বাভাবিক হয়েছে। 📶 সংযোগ বর্তমানে সম্পূর্ণ সচল রয়েছে। ✅',
+    banglish: '🛠️ Field team fiber cable repair shompurno koreche. Optical RX power normal hoyeche. 📶 Connection bortomane shochol ache. ✅',
+    english: '🛠️ Field maintenance team has completed fiber cable splicing. Optical RX power restored to normal. 📶 Connection is fully operational. ✅',
+  },
+  snip_high_loss_alert: {
+    bangla: '🚨 টেকনিশিয়ান অ্যালার্ট: হাই অপটিক্যাল সিগন্যাল লস পাওয়া গেছে। 📉 দ্রুত ড্রপ ফাইবার ও স্প্লাইস ট্রে চেক করুন। ⚡',
+    banglish: '🚨 Field Alert: High optical signal loss paowa geche. 📉 Druto drop fiber o splice tray check korun. ⚡',
+    english: '🚨 Field Alert: High optical signal loss detected. 📉 Please inspect drop cable and splice tray immediately. ⚡',
+  },
+  snip_client_resolved: {
+    bangla: '📞 গ্রাহকের সাথে কথা হয়েছে। ইন্টারনেট সংযোগ স্বাভাবিক রয়েছে এবং বর্তমানে কোনো সমস্যা নেই। ✅ লাইন সঠিকভাবে সচল রয়েছে। 📶',
+    banglish: '📞 Client er sathe kotha hoyeche. Internet connection shavabik royeche ebong bortomane kono issue/somossa nei. ✅ Line thikbhabe shochol ache. 📶',
+    english: '📞 Communicated with client. Internet connection is normal and currently experiencing no issues. ✅ Line is properly active and operating fine. 📶',
+  },
+  snip_ticket_resolved: {
+    bangla: '🎫 সম্মানিত গ্রাহক, আপনার ইন্টারনেট সংযোগটি স্বাভাবিক করা হয়েছে এবং টিকেট সফলভাবে সমাধান করা হলো। ✅ সাথে থাকার জন্য ধন্যবাদ! 🙏',
+    banglish: '🎫 Sommanito grahok, apnar internet connection shavabik kora hoyeche ebong ticket safolbhabe resolve kora holo. ✅ Dhonnobad! 🙏',
+    english: '🎫 Valued Customer, your internet connection has been restored and ticket has been marked as resolved. ✅ Thank you for your patience! 🙏',
+  },
+  snip_customer_unreachable: {
+    bangla: '📵 গ্রাহকের সাথে যোগাযোগের চেষ্টা করা হয়েছিল, কিন্তু তিনি কল রিসিভ করেননি। ওএলটি-তে সংযোগ সচল রয়েছে। পরবর্তীতে আবার যোগাযোগ করা হবে। 📞',
+    banglish: '📵 Client er sathe call e jogayog er cheshta kora hoyechilo, kintu call receive koren ni. OLT te line online ache. Abar call kora hobe. 📞',
+    english: '📵 Attempted to contact client, but the call was unanswered. Line shows online in OLT. A follow-up attempt will be made. 📞',
+  },
+  snip_router_rebooted: {
+    bangla: '🔄 গ্রাহকের সাথে কথা বলা হয়েছে। রাউটার এবং ওএনইউ রিস্টার্ট দেওয়ার পর সংযোগ পুনরুদ্ধার হয়েছে। ব্রাউজিং স্বাভাবিক রয়েছে। ✅',
+    banglish: '🔄 Client er sathe kotha bola hoyeche. Router o ONU restart dewar por connection normal hoyeche. Browsing thik ache. ✅',
+    english: '🔄 Communicated with client. Guided to power-cycle the router and ONU. Connection re-established with clean latency. ✅',
+  },
+  snip_payment_received: {
+    bangla: '💳 আপনার ইন্টারনেট বিল পেমেন্ট সফলভাবে গ্রহণ করা হয়েছে। 💰 OneSky ব্রডব্যান্ডের সাথে থাকার জন্য আন্তরিক ধন্যবাদ! 🙏',
+    banglish: '💳 Apnar internet bill payment safolbhabe grohon kora hoyeche. 💰 OneSky-r sathe thakar jonno antorik dhonnobad! 🙏',
+    english: '💳 Your internet bill payment has been successfully received. 💰 Thank you for choosing OneSky Broadband! 🙏',
+  },
+  snip_bill_due_reminder: {
+    bangla: '📅 সম্মানিত গ্রাহক, চলতি মাসের ইন্টারনেট বিল পরিশোধ করার বিনীত অনুরোধ করা হলো। ⚠️ নিরবচ্ছিন্ন সেবা বজায় রাখতে দ্রুত পরিশোধ করুন। 🙏',
+    banglish: '📅 Sommanito grahok, cholti masher internet bill porishodh korar onurodh kora holo. ⚠️ Uninterrupted sheba pete druto porishodh korun. 🙏',
+    english: '📅 Dear Customer, this is a reminder that your monthly internet bill payment is due. ⚠️ Please pay promptly to enjoy uninterrupted service. 🙏',
+  },
+  snip_new_activation: {
+    bangla: '🎉 অভিনন্দন! আপনার ব্রডব্যান্ড ইন্টারনেট সংযোগটি সফলভাবে সক্রিয় করা হয়েছে। 🚀 নিরবচ্ছিন্ন সেবায় আমরা সবসময় আপনার পাশে আছি। OneSky-র সাথে থাকার জন্য ধন্যবাদ! 📞',
+    banglish: '🎉 Obhinondon! Apnar broadband internet connection safolbhabe active kora hoyeche. 🚀 OneSky-r sathe thakar jonno dhonnobad! 📞',
+    english: '🎉 Congratulations! Your broadband internet connection has been successfully activated. 🚀 Thank you for choosing OneSky Broadband! 📞',
+  },
+};
+
+// Helpful Bengali display labels for variables
+const variableLabels: Record<string, { label: string; placeholder: string }> = {
+  name: { label: 'গ্রাহকের নাম', placeholder: 'যেমন: Rahim' },
+  customer_name: { label: 'গ্রাহকের নাম', placeholder: 'যেমন: করিম সাহেব' },
+  amount: { label: 'টাকার পরিমাণ', placeholder: 'যেমন: ৮০০' },
+  location: { label: 'লোকেশন / এলাকা', placeholder: 'যেমন: মিরপুর-১০' },
+  area: { label: 'এলাকার নাম', placeholder: 'যেমন: ধানমন্ডি' },
+  time: { label: 'আনুমানিক সময়', placeholder: 'যেমন: ২ ঘণ্টা' },
+  due_date: { label: 'বিল পরিশোধের তারিখ', placeholder: 'যেমন: ১০ তারিখ' },
+  ticket_id: { label: 'টিকেট নম্বর', placeholder: 'যেমন: TKT-1042' },
+  onu_id: { label: 'ONU আইডি', placeholder: 'যেমন: EPON01:23' },
+  port: { label: 'পোর্ট', placeholder: 'যেমন: PON 1/2' },
+  rx_power: { label: 'RX পাওয়ার (dBm)', placeholder: 'যেমন: -26.5' },
+  phone: { label: 'ফোন নম্বর', placeholder: 'যেমন: 017XXXXXXXX' },
+  trx_id: { label: 'TrxID', placeholder: 'যেমন: BK1289XX' },
+  username: { label: 'ইউজারনেম', placeholder: 'যেমন: user_99' },
+  package: { label: 'প্যাকেজ', placeholder: 'যেমন: 20 Mbps' },
+  helpline: { label: 'হেল্পলাইন', placeholder: 'যেমন: 019XXXXXXXX' },
+};
+
 export default function SmsAssistantPage() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -100,6 +181,15 @@ export default function SmsAssistantPage() {
 
   // Dynamic variable values storage: { [snippetId]: { [varName]: value } }
   const [variableInputs, setVariableInputs] = useState<Record<string, Record<string, string>>>({});
+  // Track open/collapsed state of variable input panels
+  const [expandedVariables, setExpandedVariables] = useState<Record<string, boolean>>({});
+
+  const toggleVariableExpanded = (snippetId: string) => {
+    setExpandedVariables((prev) => ({
+      ...prev,
+      [snippetId]: !prev[snippetId],
+    }));
+  };
 
   // Toast Notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -187,22 +277,45 @@ export default function SmsAssistantPage() {
     return Array.from(new Set(matches.map((m) => m.slice(1, -1))));
   };
 
-  // Interpolate text with variable inputs
+  // Interpolate text with variable inputs or return natural clean default version
   const getRenderedContent = (snippet: Snippet, lang: LanguageType): string => {
-    const raw = getSnippetRawText(snippet, lang);
     const vars = extractVariables(snippet);
-    if (vars.length === 0) return raw;
+    if (vars.length === 0) {
+      return getSnippetRawText(snippet, lang);
+    }
 
     const values = variableInputs[snippet.id] || {};
-    let rendered = raw;
+    const hasAnyValue = vars.some((v) => values[v] && values[v].trim() !== '');
 
+    // DEFAULT STATE: Dynamic values NOT added - return clean default version without raw placeholders
+    if (!hasAnyValue) {
+      if (DEFAULT_CLEAN_SNIPPETS[snippet.id]?.[lang]) {
+        return DEFAULT_CLEAN_SNIPPETS[snippet.id][lang];
+      }
+      // Fallback for custom user snippets: clean up unpopulated placeholders cleanly
+      let clean = getSnippetRawText(snippet, lang);
+      vars.forEach((v) => {
+        clean = clean.replace(new RegExp(`\\{${v}\\}-এর`, 'g'), '');
+        clean = clean.replace(new RegExp(`\\(\\s*\\{${v}\\}\\s*\\)`, 'g'), '');
+        clean = clean.replace(new RegExp(`\\{${v}\\}`, 'g'), '');
+      });
+      return clean.replace(/[ \t]+/g, ' ').replace(/\s+([।,।?!.])/g, '$1').trim();
+    }
+
+    // DYNAMIC STATE: User explicitly provided values, substitute them
+    let rendered = getSnippetRawText(snippet, lang);
     vars.forEach((v) => {
-      const val = values[v];
-      const replacement = val !== undefined && val.trim() !== '' ? val.trim() : `{${v}}`;
-      rendered = rendered.split(`{${v}}`).join(replacement);
+      const val = values[v]?.trim();
+      if (val) {
+        rendered = rendered.split(`{${v}}`).join(val);
+      } else {
+        rendered = rendered.replace(new RegExp(`\\{${v}\\}-এর`, 'g'), '');
+        rendered = rendered.replace(new RegExp(`\\(\\s*\\{${v}\\}\\s*\\)`, 'g'), '');
+        rendered = rendered.replace(new RegExp(`\\{${v}\\}`, 'g'), '');
+      }
     });
 
-    return rendered;
+    return rendered.replace(/[ \t]+/g, ' ').replace(/\s+([।,।?!.])/g, '$1').trim();
   };
 
   // Handle Input change for dynamic variables
@@ -681,28 +794,70 @@ export default function SmsAssistantPage() {
                           </div>
                         </div>
 
-                        {/* Variables inputs if template has variables */}
+                        {/* Variables inputs if template has variables (Optional / On-Demand) */}
                         {vars.length > 0 && (
-                          <div className="my-2 p-2 bg-[#0f172a] border border-slate-800 rounded-xl space-y-1.5">
-                            <span className="text-[10px] font-bold text-indigo-400 block">
-                              ডাইনামিক ভ্যালু বসান:
-                            </span>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {vars.map((v) => (
-                                <div key={v}>
-                                  <label className="block text-[9px] font-mono text-slate-400 truncate">
-                                    {`{${v}}`}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={values[v] || ''}
-                                    onChange={(e) => handleVariableChange(snippet.id, v, e.target.value)}
-                                    placeholder={`যেমন: ${v}`}
-                                    className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded px-2 py-0.5 text-xs text-white placeholder:text-slate-600 focus:outline-none"
-                                  />
-                                </div>
-                              ))}
+                          <div className="my-2">
+                            <div className="flex items-center justify-between gap-1 mb-1.5">
+                              <button
+                                type="button"
+                                onClick={() => toggleVariableExpanded(`rec_${snippet.id}`)}
+                                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition border ${
+                                  Object.values(values).some((v) => v.trim())
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                    : expandedVariables[`rec_${snippet.id}`]
+                                    ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                    : 'bg-[#0f172a] text-slate-400 hover:text-slate-200 border-slate-800'
+                                }`}
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-indigo-400" />
+                                <span>
+                                  {Object.values(values).some((v) => v.trim())
+                                    ? 'ডাইনামিক ভ্যালু সক্রিয়'
+                                    : 'ডাইনামিক ভ্যালু যোগ করুন (ঐচ্ছিক)'}
+                                </span>
+                                {expandedVariables[`rec_${snippet.id}`] ? (
+                                  <ChevronUp className="w-2.5 h-2.5 opacity-70" />
+                                ) : (
+                                  <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+                                )}
+                              </button>
+
+                              {Object.values(values).some((v) => v.trim()) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetVariables(snippet.id)}
+                                  className="text-[9px] text-slate-400 hover:text-amber-400 flex items-center gap-0.5"
+                                  title="রিসেট"
+                                >
+                                  <RotateCcw className="w-2.5 h-2.5" />
+                                  <span>ডিফল্ট</span>
+                                </button>
+                              )}
                             </div>
+
+                            {(expandedVariables[`rec_${snippet.id}`] || Object.values(values).some((v) => v.trim())) && (
+                              <div className="p-2 bg-[#0f172a] border border-slate-800 rounded-xl space-y-1.5 animate-in fade-in duration-150">
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {vars.map((v) => {
+                                    const info = variableLabels[v] || { label: v, placeholder: `যেমন: ${v}` };
+                                    return (
+                                      <div key={v}>
+                                        <label className="block text-[9px] font-medium text-slate-400 truncate">
+                                          {info.label}
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={values[v] || ''}
+                                          onChange={(e) => handleVariableChange(snippet.id, v, e.target.value)}
+                                          placeholder={info.placeholder}
+                                          className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded px-2 py-0.5 text-xs text-white placeholder:text-slate-600 focus:outline-none"
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -982,42 +1137,83 @@ export default function SmsAssistantPage() {
                         </button>
                       </div>
 
-                      {/* Dynamic Variables Inputs Section (if placeholders exist) */}
+                      {/* Dynamic Variables Section (Optional / On-Demand) */}
                       {vars.length > 0 && (
-                        <div className="my-2.5 p-3 bg-[#090d16] border border-indigo-500/20 rounded-xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-indigo-400 flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" />
-                              <span>ডাইনামিক ভ্যালু লিখুন:</span>
-                            </span>
+                        <div className="my-2.5">
+                          {/* Toggle Header */}
+                          <div className="flex items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleVariableExpanded(snippet.id)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border ${
+                                hasFilledVars
+                                  ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40 hover:bg-indigo-600/30'
+                                  : expandedVariables[snippet.id]
+                                  ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                  : 'bg-[#090d16] text-slate-400 hover:text-slate-200 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              {hasFilledVars ? (
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                  <span>
+                                    ডাইনামিক ভ্যালু সক্রিয় ({Object.values(values).filter((v) => v.trim()).length}/{vars.length})
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                                  <span>ডাইনামিক ভ্যালু যোগ করুন (ঐচ্ছিক)</span>
+                                </span>
+                              )}
+                              {expandedVariables[snippet.id] ? (
+                                <ChevronUp className="w-3 h-3 ml-0.5 opacity-70" />
+                              ) : (
+                                <ChevronDown className="w-3 h-3 ml-0.5 opacity-70" />
+                              )}
+                            </button>
+
                             {hasFilledVars && (
                               <button
+                                type="button"
                                 onClick={() => handleResetVariables(snippet.id)}
-                                className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition"
-                                title="সব ভ্যালু রিসেট করুন"
+                                className="text-[10px] text-slate-400 hover:text-amber-400 flex items-center gap-1 transition px-2 py-0.5 rounded bg-slate-800/60 border border-slate-700/60"
+                                title="সব ভ্যালু মুছে ডিফল্ট টেক্সটে ফেরত যান"
                               >
-                                <RotateCcw className="w-3 h-3" />
-                                <span>রিসেট</span>
+                                <RotateCcw className="w-2.5 h-2.5" />
+                                <span>ডিফল্টে ফেরত</span>
                               </button>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2">
-                            {vars.map((v) => (
-                              <div key={v}>
-                                <label className="block text-[10px] font-mono font-semibold text-slate-400 mb-0.5 truncate">
-                                  {`{${v}}`}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={values[v] || ''}
-                                  onChange={(e) => handleVariableChange(snippet.id, v, e.target.value)}
-                                  placeholder={`যেমন: ${v}`}
-                                  className="w-full bg-[#0f172a] border border-slate-700 focus:border-indigo-500 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none"
-                                />
+                          {/* Expandable input fields */}
+                          {(expandedVariables[snippet.id] || hasFilledVars) && (
+                            <div className="mt-2 p-3 bg-[#090d16] border border-indigo-500/20 rounded-xl space-y-2 animate-in fade-in duration-200">
+                              <div className="flex items-center justify-between text-[10px] text-slate-400">
+                                <span>প্রয়োজনীয় ফিল্ডগুলো পূরণ করুন (ফাঁকা ফিল্ড ডিফল্ট থাকবে):</span>
                               </div>
-                            ))}
-                          </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {vars.map((v) => {
+                                  const info = variableLabels[v] || { label: v, placeholder: `যেমন: ${v}` };
+                                  return (
+                                    <div key={v}>
+                                      <label className="block text-[10px] font-medium text-slate-300 mb-0.5 truncate">
+                                        {info.label} <span className="text-[9px] font-mono text-slate-500">({`{${v}}`})</span>
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={values[v] || ''}
+                                        onChange={(e) => handleVariableChange(snippet.id, v, e.target.value)}
+                                        placeholder={info.placeholder}
+                                        className="w-full bg-[#0f172a] border border-slate-700 focus:border-indigo-500 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none transition"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 

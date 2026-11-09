@@ -69,6 +69,7 @@ const synonymMap: Record<string, string[]> = {
   signal: ['loss', 'db', 'dbm', 'signal', 'optical', 'onu', 'los', 'red light', 'power', 'সিগন্যাল', 'লস', 'অপটিক্যাল', 'ওএনইউ', 'লাল'],
   call: ['phone', 'call', 'dhorche na', 'receive', 'busy', 'unanswered', 'no answer', 'ফোন', 'কল', 'রিসিভ', 'ধরে নাই'],
   welcome: ['new', 'notun', 'active', 'activation', 'connection', 'লাইন', 'নতুন', 'সংযোগ', 'সক্রিয়', 'অভিনন্দন'],
+  link: ['main link', 'backup', 'backup link', 'down', 'power off', 'power', 'device power off', 'onu device', 'same time', 'dying gasp', 'লিঙ্ক', 'ব্যাকআপ', 'ডাউন', 'পাওয়ার অফ', 'অফ'],
 };
 
 export default function SmsAssistantPage() {
@@ -466,6 +467,7 @@ export default function SmsAssistantPage() {
 
   // Quick suggestion chips to populate composer
   const quickTestChips = [
+    'main link and backup link down at same time',
     'kotha hoyeche kono issue nai',
     'bkash e 800 taka payment peyechi',
     'fiber tar chire geche line down',

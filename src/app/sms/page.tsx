@@ -474,15 +474,15 @@ export default function SmsAssistantPage() {
 
   // Quick suggestion chips to populate composer
   const quickTestChips = [
-    'kon id te issue hocche',
-    'anydesk share korben',
-    'ping enable kore den',
-    'main link and backup link down at same time',
-    'upstream network somadhan',
-    'kotha hoyeche kono issue nai',
-    'bkash e 800 taka payment peyechi',
-    'fiber tar chire geche line down',
-    'router restart dile thik hoyeche',
+    '🔍 kon id te issue hocche',
+    '🖥️ anydesk share korben',
+    '📡 ping enable kore den',
+    '🚨 main link and backup link down at same time',
+    '🌐 upstream network somadhan',
+    '📞 kotha hoyeche kono issue nai',
+    '💳 bkash e 800 taka payment peyechi',
+    '🛠️ router restart dile thik hoyeche',
+    '⏳ please allow some time',
   ];
 
   return (

@@ -35,6 +35,11 @@ import {
   Bot,
   ChevronDown,
   ChevronUp,
+  UploadCloud,
+  FileSpreadsheet,
+  AlertCircle,
+  Eye,
+  RefreshCw,
 } from 'lucide-react';
 
 type LanguageType = 'banglish' | 'bangla' | 'english';
@@ -160,6 +165,186 @@ const variableLabels: Record<string, { label: string; placeholder: string }> = {
   helpline: { label: 'হেল্পলাইন', placeholder: 'যেমন: 019XXXXXXXX' },
 };
 
+export interface BulkTemplateItem {
+  title: string;
+  contentBangla: string;
+  contentBanglish: string;
+  contentEnglish: string;
+  categoryName: string;
+  tags: string;
+  isPinned?: boolean;
+}
+
+// 1. Plain Text Parser: recognizes Title:, Bangla:, Banglish:, English:, Category:, Tags: separated by ---
+function parseBulkPlainText(text: string): BulkTemplateItem[] {
+  const blocks = text.split(/\n\s*---\s*\n|\n\s*---+\s*$/m).map((b) => b.trim()).filter(Boolean);
+  const items: BulkTemplateItem[] = [];
+
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    let title = '';
+    let bangla = '';
+    let banglish = '';
+    let english = '';
+    let category = 'General';
+    let tags = '';
+
+    let currentField: 'title' | 'bangla' | 'banglish' | 'english' | 'category' | 'tags' | '' = '';
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const lower = line.toLowerCase();
+
+      if (lower.startsWith('title:') || lower.startsWith('শিরোনাম:')) {
+        title = line.substring(line.indexOf(':') + 1).trim();
+        currentField = 'title';
+      } else if (lower.startsWith('bangla:') || lower.startsWith('বাংলা:')) {
+        bangla = line.substring(line.indexOf(':') + 1).trim();
+        currentField = 'bangla';
+      } else if (lower.startsWith('banglish:') || lower.startsWith('বাংলিশ:')) {
+        banglish = line.substring(line.indexOf(':') + 1).trim();
+        currentField = 'banglish';
+      } else if (lower.startsWith('english:') || lower.startsWith('ইংরেজি:')) {
+        english = line.substring(line.indexOf(':') + 1).trim();
+        currentField = 'english';
+      } else if (lower.startsWith('category:') || lower.startsWith('ক্যাটাগরি:')) {
+        category = line.substring(line.indexOf(':') + 1).trim();
+        currentField = 'category';
+      } else if (lower.startsWith('tags:') || lower.startsWith('ট্যাগ:')) {
+        tags = line.substring(line.indexOf(':') + 1).trim();
+        currentField = 'tags';
+      } else if (currentField && line) {
+        if (currentField === 'bangla') bangla += (bangla ? '\n' : '') + line;
+        else if (currentField === 'banglish') banglish += (banglish ? '\n' : '') + line;
+        else if (currentField === 'english') english += (english ? '\n' : '') + line;
+      } else if (!title) {
+        title = line;
+        currentField = 'title';
+      } else if (!bangla) {
+        bangla = line;
+        currentField = 'bangla';
+      }
+    }
+
+    if (title && (bangla || banglish || english)) {
+      items.push({
+        title,
+        contentBangla: bangla || banglish || english,
+        contentBanglish: banglish,
+        contentEnglish: english,
+        categoryName: category || 'General',
+        tags,
+      });
+    }
+  }
+  return items;
+}
+
+// 2. CSV / TSV / Excel Copy-Paste Parser
+function parseBulkCsvTsv(text: string): BulkTemplateItem[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const firstLine = lines[0];
+  const isTsv = firstLine.includes('\t');
+  const sep = isTsv ? '\t' : (firstLine.includes(';') ? ';' : ',');
+
+  let startIndex = 0;
+  const header = firstLine.toLowerCase();
+  if (header.includes('title') || header.includes('bangla') || header.includes('content') || header.includes('শিরোনাম')) {
+    startIndex = 1;
+  }
+
+  const items: BulkTemplateItem[] = [];
+  for (let i = startIndex; i < lines.length; i++) {
+    const cols = isTsv ? lines[i].split('\t') : lines[i].split(sep);
+    if (cols.length >= 2) {
+      const title = cols[0]?.trim();
+      const bangla = cols[1]?.trim() || '';
+      const banglish = cols[2]?.trim() || '';
+      const english = cols[3]?.trim() || '';
+      const category = cols[4]?.trim() || 'General';
+      const tags = cols[5]?.trim() || '';
+
+      if (title && (bangla || banglish || english)) {
+        items.push({
+          title,
+          contentBangla: bangla || banglish || english,
+          contentBanglish: banglish,
+          contentEnglish: english,
+          categoryName: category,
+          tags,
+        });
+      }
+    }
+  }
+  return items;
+}
+
+// 3. JSON Array Parser
+function parseBulkJson(text: string): BulkTemplateItem[] {
+  try {
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item: any) => ({
+        title: (item.title || item.Title || '').trim(),
+        contentBangla: (item.contentBangla || item.Bangla || item.bangla || item.content || '').trim(),
+        contentBanglish: (item.contentBanglish || item.Banglish || item.banglish || '').trim(),
+        contentEnglish: (item.contentEnglish || item.English || item.english || '').trim(),
+        categoryName: (item.categoryName || item.Category || item.category || 'General').trim(),
+        tags: (item.tags || item.Tags || '').trim(),
+        isPinned: Boolean(item.isPinned),
+      }))
+      .filter((item) => item.title && (item.contentBangla || item.contentBanglish || item.contentEnglish));
+  } catch {
+    return [];
+  }
+}
+
+const BULK_DEMO_TEXT = `Title: 🔌 রাউটার রিবুট নির্দেশিকা
+Bangla: প্রিয় গ্রাহক, আপনার ওয়াইফাই রাউটারটি ৫ মিনিটের জন্য বন্ধ করে আবার চালু করুন।
+Banglish: Priyo grahok, apnar WiFi router-ti 5 minuter jonno bondho kore abar on korun.
+English: Dear customer, please restart your WiFi router for 5 minutes.
+Category: Support & Line Issue (সাপোর্ট)
+Tags: router,restart,wifi
+---
+Title: 💳 বিকাশ ও নগদ মার্চেন্ট পেমেন্ট
+Bangla: আমাদের অফিসিয়াল বিকাশ/নগদ মার্চেন্ট নম্বর: 01XXXXXXXXX (Make Payment অপশনে দিয়ে রেফারেন্সে আপনার আইডি লিখুন)।
+Banglish: Amader official bKash/Nagad merchant number: 01XXXXXXXXX (Make Payment e reference apnar ID likhun).
+English: Our official bKash/Nagad merchant number is 01XXXXXXXXX.
+Category: Payment & Billing (বিল ও পেমেন্ট)
+Tags: bkash,nagad,payment
+---
+Title: ⚡ বিদ্যুৎ বিভ্রাট নোটিশ
+Bangla: আপনার এলাকায় বিদ্যুৎ না থাকায় ইন্টারনেট সংযোগ সাময়িক বিঘ্নিত হতে পারে। পাওয়ার আসলে সংযোগ সচল হবে।
+Category: Support & Line Issue (সাপোর্ট)
+Tags: power,outage`;
+
+const BULK_DEMO_EXCEL = `Title\tBangla\tBanglish\tEnglish\tCategory\tTags
+রাউটার রিবুট\tআপনার রাউটার ৫ মিনিট বন্ধ রাখুন\tRouter 5 min off rakhun\tPlease restart router for 5 min\tSupport\trouter,restart
+বিকাশ পেমেন্ট\tআমাদের বিকাশ মার্চেন্ট নম্বর ০১XXXXXXXXX\tAmader bkash merchant number 01XXXXXXXXX\tOur bkash merchant number 01XXXXXXXXX\tPayment\tbkash,payment`;
+
+const BULK_DEMO_JSON = `[
+  {
+    "title": "🔌 রাউটার রিবুট নির্দেশিকা",
+    "contentBangla": "প্রিয় গ্রাহক, আপনার ওয়াইফাই রাউটারটি ৫ মিনিটের জন্য বন্ধ করে আবার চালু করুন।",
+    "contentBanglish": "Priyo grahok, apnar WiFi router-ti 5 minuter jonno bondho kore abar on korun.",
+    "contentEnglish": "Dear customer, please restart your WiFi router for 5 minutes.",
+    "categoryName": "Support & Line Issue (সাপোর্ট)",
+    "tags": "router,restart,wifi"
+  },
+  {
+    "title": "💳 বিকাশ ও নগদ মার্চেন্ট পেমেন্ট",
+    "contentBangla": "আমাদের বিকাশ মার্চেন্ট নম্বর 01XXXXXXXXX",
+    "contentBanglish": "Amader bkash merchant number 01XXXXXXXXX",
+    "contentEnglish": "Our bkash merchant number is 01XXXXXXXXX",
+    "categoryName": "Payment & Billing (বিল ও পেমেন্ট)",
+    "tags": "bkash,payment"
+  }
+]`;
+
 export default function SmsAssistantPage() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -207,6 +392,75 @@ export default function SmsAssistantPage() {
   const [modalPinned, setModalPinned] = useState<boolean>(false);
   const [modalActiveTab, setModalActiveTab] = useState<LanguageType>('banglish');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Bulk Import State
+  const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
+  const [bulkInputMethod, setBulkInputMethod] = useState<'text' | 'excel' | 'json'>('text');
+  const [bulkRawInput, setBulkRawInput] = useState<string>('');
+  const [bulkOverwrite, setBulkOverwrite] = useState<boolean>(true);
+  const [bulkIsSubmitting, setBulkIsSubmitting] = useState<boolean>(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [showBulkPreviewTable, setShowBulkPreviewTable] = useState<boolean>(true);
+
+  // Live parsed bulk items
+  const parsedBulkItems = useMemo(() => {
+    if (!bulkRawInput.trim()) return [];
+    if (bulkInputMethod === 'text') {
+      return parseBulkPlainText(bulkRawInput);
+    } else if (bulkInputMethod === 'excel') {
+      return parseBulkCsvTsv(bulkRawInput);
+    } else {
+      return parseBulkJson(bulkRawInput);
+    }
+  }, [bulkRawInput, bulkInputMethod]);
+
+  const handleBulkSubmit = async () => {
+    if (parsedBulkItems.length === 0) return;
+    try {
+      setBulkIsSubmitting(true);
+      setBulkError(null);
+      const res = await fetch('/api/snippets/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: parsedBulkItems,
+          overwriteExisting: bulkOverwrite,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'বাল্ক ইমপোর্ট সম্পন্ন করা যায়নি');
+      }
+      showToast(data.message || `🎉 ${parsedBulkItems.length} টি টেমপ্লেট সফলভাবে যুক্ত হয়েছে!`);
+      setShowBulkModal(false);
+      setBulkRawInput('');
+      await fetchSnippets();
+    } catch (err: any) {
+      setBulkError(err.message);
+    } finally {
+      setBulkIsSubmitting(false);
+    }
+  };
+
+  const handleBulkFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (content) {
+        setBulkRawInput(content);
+        if (file.name.endsWith('.json')) {
+          setBulkInputMethod('json');
+        } else if (file.name.endsWith('.csv') || file.name.endsWith('.tsv')) {
+          setBulkInputMethod('excel');
+        } else {
+          setBulkInputMethod('text');
+        }
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
 
   // Delete modal
   const [snippetToDelete, setSnippetToDelete] = useState<Snippet | null>(null);
@@ -640,6 +894,18 @@ export default function SmsAssistantPage() {
               <Zap className="w-3.5 h-3.5 text-sky-400" />
               <span>OLT Report</span>
             </Link>
+
+            <button
+              onClick={() => {
+                setShowBulkModal(true);
+                setBulkError(null);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-white rounded-xl text-xs font-bold border border-emerald-500/40 transition shadow"
+              title="এক সাথে একাধিক মেসেজ টেমপ্লেট বাল্ক ইমপোর্ট করুন"
+            >
+              <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span>বাল্ক ইমপোর্ট</span>
+            </button>
 
             <button
               onClick={() => openModal()}
@@ -1288,6 +1554,285 @@ export default function SmsAssistantPage() {
           )}
         </div>
       </main>
+
+      {/* ======================================================== */}
+      {/* BULK IMPORT MODAL: Easy Mass Template Ingestion */}
+      {/* ======================================================== */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-3xl max-w-4xl w-full shadow-2xl p-5 sm:p-6 my-auto space-y-4 max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      বাল্ক টেমপ্লেট ইমপোর্টার (Bulk Importer)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      সহজ ও দ্রুত
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    টেক্সট, এক্সেল (Excel/CSV) বা JSON থেকে এক ক্লিকে বহু মেসেজ ডাটাবেজে যুক্ত করুন
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: Scrollable */}
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+              {/* Format Switcher Tabs */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-[#090d16] p-1 rounded-2xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setBulkInputMethod('text')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                      bulkInputMethod === 'text'
+                        ? 'bg-indigo-600 text-white shadow font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>১. সহজ সাধারণ টেক্সট</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkInputMethod('excel')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                      bulkInputMethod === 'excel'
+                        ? 'bg-emerald-600 text-white shadow font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>২. এক্সেল / CSV / টেবিল</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkInputMethod('json')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                      bulkInputMethod === 'json'
+                        ? 'bg-sky-600 text-white shadow font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>৩. JSON ফরম্যাট</span>
+                  </button>
+                </div>
+
+                {/* Demo auto-fill & file upload button */}
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold border border-slate-700 transition cursor-pointer">
+                    <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>ফাইল আপলোড</span>
+                    <input
+                      type="file"
+                      accept=".txt,.csv,.tsv,.json"
+                      onChange={handleBulkFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (bulkInputMethod === 'text') setBulkRawInput(BULK_DEMO_TEXT);
+                      else if (bulkInputMethod === 'excel') setBulkRawInput(BULK_DEMO_EXCEL);
+                      else setBulkRawInput(BULK_DEMO_JSON);
+                    }}
+                    className="px-2.5 py-1.5 text-xs text-amber-400 hover:text-amber-300 bg-amber-400/10 border border-amber-400/20 rounded-xl font-semibold transition flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>নমুনা ডেটা বসান</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Instructions Banner */}
+              <div className="p-3 bg-[#090d16] border border-slate-800 rounded-2xl text-xs text-slate-300 leading-relaxed space-y-1">
+                {bulkInputMethod === 'text' && (
+                  <p>
+                    💡 <strong>টেক্সট ফরম্যাট নিয়ম:</strong> প্রতিটি মেসেজে <code className="text-indigo-400">Title:</code> ও <code className="text-emerald-400">Bangla:</code> লিখুন। ঐচ্ছিকভাবে <code className="text-amber-400">Banglish:</code>, <code className="text-sky-400">English:</code>, <code className="text-purple-400">Category:</code>, <code className="text-pink-400">Tags:</code> লিখতে পারেন। দুটি মেসেজের মাঝে <code className="text-slate-400 font-bold">---</code> দিয়ে আলাদা করুন।
+                  </p>
+                )}
+                {bulkInputMethod === 'excel' && (
+                  <p>
+                    💡 <strong>এক্সেল ফরম্যাট নিয়ম:</strong> Excel বা Google Sheets থেকে কলামগুলো সরাসরি কপি করে নিচে পেস্ট করুন (Tab বা Comma separated)। কলামের সিরিয়াল: <code className="text-indigo-400">Title [Tab] Bangla [Tab] Banglish [Tab] English [Tab] Category [Tab] Tags</code>।
+                  </p>
+                )}
+                {bulkInputMethod === 'json' && (
+                  <p>
+                    💡 <strong>JSON ফরম্যাট নিয়ম:</strong> একটি ভ্যালিড JSON অ্যারে <code className="text-sky-400">[ ... ]</code> পেস্ট করুন যেখানে প্রতিটি অবজেক্টে <code className="text-indigo-400">title</code> এবং <code className="text-emerald-400">contentBangla</code> থাকবে।
+                  </p>
+                )}
+              </div>
+
+              {/* Raw Input Textarea */}
+              <div className="relative">
+                <textarea
+                  rows={8}
+                  value={bulkRawInput}
+                  onChange={(e) => setBulkRawInput(e.target.value)}
+                  placeholder={
+                    bulkInputMethod === 'text'
+                      ? 'এখানে পেস্ট করুন...\n\nTitle: রাউটার রিবুট রিকোয়েস্ট\nBangla: আপনার রাউটারটি ৫ মিনিটের জন্য বন্ধ রাখুন...\nBanglish: Apnar router 5 min bondho rakhun...\nCategory: Support\n---\nTitle: বিকাশ পেমেন্ট নম্বর\nBangla: আমাদের বিকাশ নম্বর 01XXXXXXXXX...'
+                      : bulkInputMethod === 'excel'
+                      ? 'Title\tBangla\tBanglish\tEnglish\tCategory\tTags\nরাউটার রিবুট\tরাউটার ৫ মিনিট বন্ধ রাখুন\tRouter 5 min off\tRestart router\tSupport\trouter'
+                      : '[\n  {\n    "title": "রাউটার রিবুট",\n    "contentBangla": "আপনার রাউটার ৫ মিনিট বন্ধ রাখুন",\n    "categoryName": "Support"\n  }\n]'
+                  }
+                  className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-500 rounded-2xl p-4 text-xs text-white placeholder:text-slate-600 focus:outline-none transition font-mono leading-relaxed"
+                />
+                {bulkRawInput && (
+                  <button
+                    type="button"
+                    onClick={() => setBulkRawInput('')}
+                    className="absolute right-3 top-3 px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 hover:text-white"
+                  >
+                    মুছে ফেলুন
+                  </button>
+                )}
+              </div>
+
+              {/* Real-time Parser Status & Live Table Preview */}
+              {bulkRawInput.trim() && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {parsedBulkItems.length > 0 ? (
+                        <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{parsedBulkItems.length} টি ভ্যালিড টেমপ্লেট শনাক্ত করা হয়েছে</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>কোনো সঠিক টেমপ্লেট পাওয়া যায়নি (Title ও Text চেক করুন)</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {parsedBulkItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowBulkPreviewTable(!showBulkPreviewTable)}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{showBulkPreviewTable ? 'টেবিল লুকান' : 'প্রিভিউ টেবিল দেখুন'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Preview Table */}
+                  {parsedBulkItems.length > 0 && showBulkPreviewTable && (
+                    <div className="border border-slate-800 rounded-2xl overflow-hidden max-h-56 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#090d16] text-slate-400 text-[10px] font-mono uppercase tracking-wider sticky top-0 border-b border-slate-800">
+                          <tr>
+                            <th className="p-2.5">#</th>
+                            <th className="p-2.5">শিরোনাম (Title)</th>
+                            <th className="p-2.5">ক্যাটাগরি</th>
+                            <th className="p-2.5">বাংলা মেসেজ</th>
+                            <th className="p-2.5">বাংলিশ / ইংরেজি</th>
+                            <th className="p-2.5">ট্যাগ</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 font-sans">
+                          {parsedBulkItems.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-800/30 transition">
+                              <td className="p-2.5 text-slate-500 font-mono text-[10px]">{idx + 1}</td>
+                              <td className="p-2.5 font-bold text-white max-w-[160px] truncate">{item.title}</td>
+                              <td className="p-2.5">
+                                <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                                  {item.categoryName}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-slate-300 max-w-[220px] truncate" title={item.contentBangla}>
+                                {item.contentBangla}
+                              </td>
+                              <td className="p-2.5 text-slate-400 max-w-[180px] truncate">
+                                {item.contentBanglish || item.contentEnglish || '-'}
+                              </td>
+                              <td className="p-2.5 text-slate-500 font-mono text-[10px] truncate max-w-[100px]">
+                                {item.tags || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Error Alert */}
+              {bulkError && (
+                <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-xs text-red-400 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{bulkError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-800 shrink-0">
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={bulkOverwrite}
+                  onChange={(e) => setBulkOverwrite(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-0 bg-[#090d16] border-slate-700"
+                />
+                <span>একই নামের টেমপ্লেট আগে থেকে থাকলে আপডেট (Overwrite) করুন</span>
+              </label>
+
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="button"
+                  disabled={parsedBulkItems.length === 0 || bulkIsSubmitting}
+                  onClick={handleBulkSubmit}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkIsSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>ইমপোর্ট হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-4 h-4" />
+                      <span>
+                        {parsedBulkItems.length > 0
+                          ? `🚀 ${parsedBulkItems.length} টি টেমপ্লেট ডেটাবেজে যোগ করুন`
+                          : 'টেমপ্লেট যোগ করুন'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add / Edit Snippet Modal with 3 Language Tabs */}
       {showModal && (

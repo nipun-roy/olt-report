@@ -70,6 +70,69 @@ export async function POST(request: Request) {
       slug,
     } = body;
 
+    // Handle bulk snippet creation
+    if (action === 'bulk_create' || Array.isArray(body.items)) {
+      const bulkItems = Array.isArray(body.items) ? body.items : (Array.isArray(body) ? body : []);
+      const overwriteExisting = Boolean(body.overwriteExisting ?? true);
+
+      let insertedCount = 0;
+      let updatedCount = 0;
+
+      for (let i = 0; i < bulkItems.length; i++) {
+        const item = bulkItems[i];
+        const t = (item.title || '').trim();
+        const bn = (item.contentBangla || item.content || '').trim();
+        const bng = (item.contentBanglish || '').trim();
+        const en = (item.contentEnglish || '').trim();
+        const cat = (item.categoryName || 'General').trim();
+        const tg = (item.tags || '').trim();
+        const main = bn || bng || en;
+
+        if (!t || !main) continue;
+
+        const existing = await db.select().from(snippets).where(eq(snippets.title, t));
+        if (existing.length > 0) {
+          if (overwriteExisting) {
+            await db
+              .update(snippets)
+              .set({
+                title: t,
+                content: main,
+                contentBangla: bn || main,
+                contentBanglish: bng,
+                contentEnglish: en,
+                categoryName: cat,
+                tags: tg,
+              })
+              .where(eq(snippets.id, existing[0].id));
+            updatedCount++;
+          }
+        } else {
+          await db.insert(snippets).values({
+            id: item.id || `snip_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+            title: t,
+            content: main,
+            contentBangla: bn || main,
+            contentBanglish: bng,
+            contentEnglish: en,
+            categoryName: cat,
+            tags: tg,
+            isPinned: Boolean(item.isPinned),
+            copyCount: 0,
+            createdAt: new Date(),
+          });
+          insertedCount++;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `বাল্ক ইমপোর্ট সম্পন্ন! নতুন: ${insertedCount} টি, আপডেট: ${updatedCount} টি`,
+        insertedCount,
+        updatedCount,
+      });
+    }
+
     // Handle new category creation
     if (action === 'create_category') {
       if (!name || !name.trim()) {

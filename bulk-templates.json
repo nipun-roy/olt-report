@@ -1,0 +1,29 @@
+[
+  {
+    "title": "🔌 রাউটার রিবুট নির্দেশিকা (Router Reboot Guide)",
+    "contentBangla": "🔌 প্রিয় গ্রাহক, অনুগ্রহ করে আপনার ওয়াইফাই রাউটারটি ৫ মিনিটের জন্য পাওয়ার অফ করে পুনরায় অন করুন। এরপর সংযোগ পরীক্ষা করে আমাদের জানান। ধন্যবাদ! 🙏",
+    "contentBanglish": "🔌 Priyo grahok, onugroho kore apnar WiFi router-ti 5 minuter jonno power off kore punoray on korun. Erpor connection test kore amader janan. Dhonnobad! 🙏",
+    "contentEnglish": "🔌 Dear customer, please power off your Wi-Fi router for 5 minutes and then turn it back on. Then test your connection and let us know. Thank you! 🙏",
+    "categoryName": "Support & Line Issue (সাপোর্ট)",
+    "tags": "router,reboot,wifi,restart",
+    "isPinned": false
+  },
+  {
+    "title": "💳 বিকাশ ও নগদ পেমেন্ট নম্বর (bKash & Nagad Payment Info)",
+    "contentBangla": "💳 সম্মানিত গ্রাহক, আমাদের অফিসিয়াল বিকাশ/নগদ মার্চেন্ট নম্বর: 01XXXXXXXXX (Make Payment অপশন ব্যবহার করে রেফারেন্সে আপনার ইউজার আইডি লিখুন)। ধন্যবাদ! 💰",
+    "contentBanglish": "💳 Sommanito grahok, amader official bKash/Nagad merchant number: 01XXXXXXXXX (Make Payment option bebohar kore reference-e apnar User ID likhun). Dhonnobad! 💰",
+    "contentEnglish": "💳 Valued customer, our official bKash/Nagad merchant number is: 01XXXXXXXXX (Please use 'Make Payment' and enter your User ID in the reference). Thank you! 💰",
+    "categoryName": "Payment & Billing (বিল ও পেমেন্ট)",
+    "tags": "bkash,nagad,payment,merchant",
+    "isPinned": false
+  },
+  {
+    "title": "⚡ বিদ্যুৎ বিভ্রাট সংক্রান্ত নোটিশ (Power Outage / Backup Mode)",
+    "contentBangla": "⚡ সম্মানিত গ্রাহক, আপনার এলাকার মেইন লাইনে বিদ্যুৎ না থাকায় সংযোগ সাময়িক বিঘ্নিত হতে পারে। পাওয়ার রিস্টোর হলে সংযোগ স্বাভাবিক হবে। আপনাদের সহযোগিতার জন্য ধন্যবাদ। 🔌",
+    "contentBanglish": "⚡ Sommanito grahok, apnar elakar main line-e biddut na thakay connection samoyik bighnito hote pare. Power restore hole connection shavabik hobe. Dhonnobad. 🔌",
+    "contentEnglish": "⚡ Valued customer, internet service may be temporarily interrupted due to a power outage in your area. Service will resume once power is restored. Thank you. 🔌",
+    "categoryName": "Support & Line Issue (সাপোর্ট)",
+    "tags": "power,outage,electricity,backup",
+    "isPinned": false
+  }
+]

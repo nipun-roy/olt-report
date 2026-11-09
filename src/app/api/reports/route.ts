@@ -3,6 +3,7 @@ import { db, ensureTablesExist } from '@/lib/db';
 import { reports, onus, signalLogs, fieldTickets } from '@/lib/db/schema';
 import { parseMultiBrandOltOutput, ParsedOnu } from '@/lib/parsers/oltParser';
 import { desc, eq } from 'drizzle-orm';
+import { requireApiAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -159,6 +160,12 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureTablesExist();
+
+    // Security Check: Deleting reports requires valid session
+    const authCheck = await requireApiAuth(request);
+    if (!authCheck.authorized) {
+      return authCheck.response;
+    }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

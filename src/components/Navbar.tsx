@@ -1,6 +1,7 @@
 'use client';
 
-import { UploadCloud, Database } from 'lucide-react';
+import { Database } from 'lucide-react';
+import AuthStatus from './AuthStatus';
 
 export default function Navbar() {
   return (
@@ -14,7 +15,8 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="text-xs text-slate-500 font-mono">OLT Log Optical Analyzer</span>
+        <span className="hidden sm:inline text-xs text-slate-500 font-mono">OLT Log Optical Analyzer</span>
+        <AuthStatus />
       </div>
     </header>
   );

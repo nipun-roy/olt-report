@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import AuthStatus from '@/components/AuthStatus';
 import {
   UploadCloud,
   FileText,
@@ -345,6 +346,8 @@ EPON0/3:2\t00:1E:67:88:99:AA\tCustomer-Opt\t1200\t42.00\t3.30\t14.00\t2.10\t-18.
               <MessageSquare className="w-4 h-4 text-indigo-400" />
               <span>Quick SMS</span>
             </Link>
+
+            <AuthStatus />
 
             {/* Toggle Input Section */}
             <button

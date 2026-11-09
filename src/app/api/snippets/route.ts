@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db, ensureTablesExist } from '@/lib/db';
 import { snippets, categories } from '@/lib/db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
+import { requireApiAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await ensureTablesExist();
+
+    // Security Check: Better Auth
+    const authCheck = await requireApiAuth(request);
+    if (!authCheck.authorized) {
+      return authCheck.response;
+    }
 
     const body = await request.json();
     const {
@@ -214,7 +221,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Snippet ID is required' }, { status: 400 });
     }
 
-    // Action: Increment copy count
+    // Action: Increment copy count (publicly allowed when clicking Copy)
     if (action === 'increment_copy') {
       await db
         .update(snippets)
@@ -224,6 +231,12 @@ export async function PUT(request: Request) {
         .where(eq(snippets.id, id));
 
       return NextResponse.json({ success: true, message: 'Copy count updated' });
+    }
+
+    // Security Check: Mutating actions (edit, pin) require valid session
+    const authCheck = await requireApiAuth(request);
+    if (!authCheck.authorized) {
+      return authCheck.response;
     }
 
     // Action: Toggle Pin
@@ -270,6 +283,12 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await ensureTablesExist();
+
+    // Security Check: Deleting requires valid session
+    const authCheck = await requireApiAuth(request);
+    if (!authCheck.authorized) {
+      return authCheck.response;
+    }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import AuthStatus from '@/components/AuthStatus';
 import {
   Copy,
   Check,
@@ -914,6 +915,8 @@ export default function SmsAssistantPage() {
               <Plus className="w-4 h-4" />
               <span>নতুন ৩-ইন-১ টেমপ্লেট</span>
             </button>
+
+            <AuthStatus />
           </div>
         </div>
       </header>

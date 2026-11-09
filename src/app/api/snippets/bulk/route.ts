@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server';
 import { db, client, ensureTablesExist } from '@/lib/db';
 import { snippets, categories } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { requireApiAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
     await ensureTablesExist();
+
+    // Security Check: Bulk import requires valid session
+    const authCheck = await requireApiAuth(request);
+    if (!authCheck.authorized) {
+      return authCheck.response;
+    }
 
     const body = await request.json();
     const items = Array.isArray(body) ? body : (body.items || body.templates || []);

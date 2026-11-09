@@ -70,6 +70,13 @@ const synonymMap: Record<string, string[]> = {
   call: ['phone', 'call', 'dhorche na', 'receive', 'busy', 'unanswered', 'no answer', 'ফোন', 'কল', 'রিসিভ', 'ধরে নাই'],
   welcome: ['new', 'notun', 'active', 'activation', 'connection', 'লাইন', 'নতুন', 'সংযোগ', 'সক্রিয়', 'অভিনন্দন'],
   link: ['main link', 'backup', 'backup link', 'down', 'power off', 'power', 'device power off', 'onu device', 'same time', 'dying gasp', 'লিঙ্ক', 'ব্যাকআপ', 'ডাউন', 'পাওয়ার অফ', 'অফ'],
+  user_id: ['id', 'kon id', 'id share', 'user id', 'username', 'আইডি', 'আইডি দিন', 'ইউজার আইডি'],
+  anydesk: ['anydesk', 'any desk', 'remote', 'access', 'এনিডেস্ক', 'শেয়ার'],
+  ping: ['ping', 'ping enable', 'icmp', 'পিং', 'পিং এনেবল'],
+  upstream: ['upstream', 'upstream network', 'আপস্ট্রিম', 'নেটওয়ার্ক'],
+  allow_time: ['allow time', 'some time', 'সময় দিন', 'একটু সময়', 'সহযোগিতা', 'ধৈর্য্য', 'wait'],
+  check_now: ['check korun', 'check koren', 'চেক করুন', 'সব ঠিক', 'এখন চেক'],
+  working: ['kaj korchi', 'কাজ করছি', 'কাজ চলছে', 'চেষ্টা করছি'],
 };
 
 export default function SmsAssistantPage() {
@@ -467,13 +474,15 @@ export default function SmsAssistantPage() {
 
   // Quick suggestion chips to populate composer
   const quickTestChips = [
+    'kon id te issue hocche',
+    'anydesk share korben',
+    'ping enable kore den',
     'main link and backup link down at same time',
+    'upstream network somadhan',
     'kotha hoyeche kono issue nai',
     'bkash e 800 taka payment peyechi',
     'fiber tar chire geche line down',
     'router restart dile thik hoyeche',
-    'grahok phone receive kore ni',
-    'onu optical loss beshi red light',
   ];
 
   return (

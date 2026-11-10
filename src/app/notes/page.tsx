@@ -493,81 +493,92 @@ export default function WorkNotesPage() {
   }, [notes]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Top Header */}
-      <div className="border-b border-[#1e293b] pb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+    <div className="min-h-screen bg-[#080d1a] pb-16">
+      {/* Top Header & Sticky Navigation Bar */}
+      <header className="sticky top-0 z-40 bg-[#0c1322]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 py-3.5 shadow-lg shadow-black/20">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
-              <ClipboardList className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-600 to-rose-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/25">
+              <ClipboardList className="w-5 h-5 fill-white text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-white tracking-wide">
-                  অপারেশনাল নোট ও টাস্ক ট্র্যাকার
+                <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
+                  OneSky Task &amp; Work Notes
                 </h1>
-                {counts.pending > 0 && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono animate-pulse">
+                {counts.pending > 0 ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono animate-pulse">
                     {counts.pending} টি কাজ পেন্ডিং
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                    সব কাজ সম্পন্ন
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400">
                 কোন কাজ কত সময় ধরে পেন্ডিং আছে এবং কোনটি সম্পন্ন হয়েছে তা লাইভ ট্র্যাকিং করুন
               </p>
             </div>
           </div>
+
+          {/* Navigation & Action Controls */}
+          <div className="flex items-center flex-wrap gap-2.5">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold border border-slate-700 transition"
+              title="OLT অপটিক্যাল রিপোর্ট জেনারেটরে ফিরে যান"
+            >
+              <Zap className="w-3.5 h-3.5 text-sky-400" />
+              <span>OLT Report</span>
+            </Link>
+
+            <Link
+              href="/sms"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold border border-slate-700 transition"
+              title="Quick SMS ও Snippet Assistant ড্যাশবোর্ড"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Quick SMS</span>
+            </Link>
+
+            <button
+              onClick={handleCopyHandover}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow border ${
+                copiedHandover
+                  ? 'bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+              }`}
+              title="হোয়াটসঅ্যাপ বা টেলিগ্রাম শিফট হ্যান্ডওভারের জন্য কপি করুন"
+            >
+              {copiedHandover ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5 text-emerald-400" />}
+              <span>{copiedHandover ? 'কপি হয়েছে!' : 'হ্যান্ডওভার কপি'}</span>
+            </button>
+
+            <button
+              onClick={() => fetchNotes()}
+              disabled={refreshing}
+              className="p-2 bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold transition"
+              title="রিফ্রেশ করুন"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-sky-400' : ''}`} />
+            </button>
+
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-sky-500/20 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>নতুন কাজ যোগ করুন</span>
+            </button>
+
+            <AuthStatus />
+          </div>
         </div>
+      </header>
 
-        {/* Action Controls */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition border border-slate-700/50"
-          >
-            <FileText className="w-3.5 h-3.5 text-sky-400" />
-            <span>OLT রিপোর্ট</span>
-          </Link>
-
-          <Link
-            href="/sms"
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition border border-slate-700/50"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Quick SMS</span>
-          </Link>
-
-          <button
-            onClick={handleCopyHandover}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-md ${
-              copiedHandover
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30'
-            }`}
-            title="হোয়াটসঅ্যাপ বা টেলিগ্রাম শিফট হ্যান্ডওভারের জন্য কপি করুন"
-          >
-            {copiedHandover ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4 text-emerald-400" />}
-            <span>{copiedHandover ? 'কপি হয়েছে!' : 'হ্যান্ডওভার কপি'}</span>
-          </button>
-
-          <button
-            onClick={() => fetchNotes()}
-            disabled={refreshing}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl text-xs font-semibold transition"
-            title="রিফ্রেশ করুন"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-sky-400' : ''}`} />
-          </button>
-
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-sky-500/20 transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>নতুন কাজ যোগ করুন</span>
-          </button>
-        </div>
-      </div>
+      {/* Main Page Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-6">
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
@@ -1080,6 +1091,7 @@ export default function WorkNotesPage() {
           })}
         </div>
       )}
+      </main>
 
       {/* CREATE / EDIT NOTE MODAL */}
       {showAddModal && (

@@ -41,6 +41,7 @@ import {
   AlertCircle,
   Eye,
   RefreshCw,
+  ClipboardList,
 } from 'lucide-react';
 
 type LanguageType = 'banglish' | 'bangla' | 'english';
@@ -885,7 +886,7 @@ export default function SmsAssistantPage() {
             </div>
           </div>
 
-          {/* Navigation Switcher between OLT Report & SMS Manager */}
+          {/* Navigation Switcher between OLT Report, Notes & SMS Manager */}
           <div className="flex items-center gap-2.5">
             <Link
               href="/"
@@ -894,6 +895,15 @@ export default function SmsAssistantPage() {
             >
               <Zap className="w-3.5 h-3.5 text-sky-400" />
               <span>OLT Report</span>
+            </Link>
+
+            <Link
+              href="/notes"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 rounded-xl text-xs font-bold border border-amber-500/30 transition shadow"
+              title="কাজের নোট ও টাস্ক ট্র্যাকার"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-amber-400" />
+              <span>কাজের নোট (Notes)</span>
             </Link>
 
             <button

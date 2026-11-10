@@ -24,6 +24,7 @@ import {
   PlusCircle,
   HelpCircle,
   MessageSquare,
+  ClipboardList,
 } from 'lucide-react';
 
 interface ReportItem {
@@ -337,6 +338,16 @@ EPON0/3:2\t00:1E:67:88:99:AA\tCustomer-Opt\t1200\t42.00\t3.30\t14.00\t2.10\t-18.
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Work Notes / Tasks Navigation Link */}
+            <Link
+              href="/notes"
+              className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition shadow"
+              title="কাজের নোট ও টাস্ক ট্র্যাকার — কোন কাজ কত সময় ধরে পেন্ডিং"
+            >
+              <ClipboardList className="w-4 h-4 text-amber-400" />
+              <span>কাজের নোট (Notes)</span>
+            </Link>
+
             {/* Quick SMS Assistant Navigation Link */}
             <Link
               href="/sms"

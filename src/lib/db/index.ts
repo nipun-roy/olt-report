@@ -139,6 +139,26 @@ export async function ensureTablesExist() {
       );
     `);
 
+    // 5. Work Notes Table (কাজের নোট ও টাস্ক ট্র্যাকিং)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS work_notes (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        category TEXT DEFAULT 'GENERAL',
+        priority TEXT NOT NULL DEFAULT 'HIGH',
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        target_id TEXT,
+        assigned_to TEXT,
+        created_by TEXT,
+        resolution_note TEXT,
+        created_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+
     // Safely add columns if table was created earlier without them
     try { await client.execute('ALTER TABLE snippets ADD COLUMN content_bangla TEXT;'); } catch {}
     try { await client.execute('ALTER TABLE snippets ADD COLUMN content_banglish TEXT;'); } catch {}

@@ -108,6 +108,24 @@ export const fieldTickets = sqliteTable('field_tickets', {
   resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
 });
 
+// Work Notes / Tasks Table (কাজের নোট ও টাস্ক ট্র্যাকার - কত সময় ধরে আছে ও সম্পন্ন ট্র্যাকিং)
+export const workNotes = sqliteTable('work_notes', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  category: text('category').default('GENERAL'), // LINK_DOWN, POWER_OFF, FIBER_CUT, OPTICAL_LOSS, ROUTER_CONFIG, CUSTOMER_ISSUE, GENERAL
+  priority: text('priority').notNull().default('HIGH'), // CRITICAL, HIGH, MEDIUM, LOW
+  status: text('status').notNull().default('PENDING'), // PENDING, IN_PROGRESS, COMPLETED
+  targetId: text('target_id'), // e.g. PON0/1:23, 10.10.1.5, User: Karim
+  assignedTo: text('assigned_to'), // Technician or Team
+  createdBy: text('created_by'), // Creator user name / email
+  resolutionNote: text('resolution_note'), // Resolution remark when completed
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  startedAt: integer('started_at', { mode: 'timestamp' }),
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
 // ==========================================
 // Better Auth Core Tables (Authentication & Security)
 // ==========================================

@@ -8,6 +8,8 @@ import {
   UploadCloud,
   Trash2,
   Zap,
+  MessageSquare,
+  ClipboardList,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -15,6 +17,8 @@ export default function Sidebar() {
 
   const navItems = [
     { label: 'Optical dB Report', href: '/', icon: FileText, highlight: true },
+    { label: 'Quick SMS Assistant', href: '/sms', icon: MessageSquare },
+    { label: 'কাজের নোট / Tasks', href: '/notes', icon: ClipboardList },
     { label: 'Import / Paste Log', href: '/import', icon: UploadCloud },
   ];
 
